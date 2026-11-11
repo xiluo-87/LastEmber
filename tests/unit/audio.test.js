@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createGame } from '../../src/game.js';
 import { audio, AUDIO, SOUND_NAMES, LOOP_NAMES } from '../../src/audio.js';
 import { TILE } from '../../src/data/balance.js';
+import { notePlayerInput } from '../../src/systems/audio.js';
 
 // ---- fakes -------------------------------------------------------------------------------------------------
 function memStorage() {
@@ -273,7 +274,7 @@ test('ambience: wind scales with weather, fire crackle with distance to the near
   }
 });
 
-test('bad toasts also play the denied blip', () => {
+test('refused player actions (bad toast after an input) play the denied blip, automatic warnings do not', () => {
   const ctx = fakeContext();
   audio.configure({ storage: memStorage(), makeContext: () => ctx });
   audio.unlock();
@@ -285,11 +286,15 @@ test('bad toasts also play the denied blip', () => {
   try {
     run(game, ctx, 1);                                     // system update wraps the toast once
     ctx.currentTime += 1;
-    game.ui.toast('Bag full', 'bad');
+    game.ui.toast('Low warmth', 'bad');                    // automatic warning, no player input: silent
+    assert.deepEqual(spy.plays.filter((n) => n === 'denied'), []);
+    ctx.currentTime += 1;
+    notePlayerInput();
+    game.ui.toast('Bag full', 'bad');                      // refused player action: blip
     ctx.currentTime += 1;
     game.ui.toast('Repaired', 'good');
     assert.deepEqual(spy.plays.filter((n) => n === 'denied'), ['denied']);
-    assert.deepEqual(shown, [['Bag full', 'bad'], ['Repaired', 'good']], 'original toast still runs');
+    assert.deepEqual(shown, [['Low warmth', 'bad'], ['Bag full', 'bad'], ['Repaired', 'good']], 'original toast still runs');
   } finally {
     spy.restore();
   }

@@ -110,6 +110,7 @@ export function pickupDropped(game, obj) {
   if (left > 0) { s.n = left; toast(game, 'Bag full - took some', 'bad'); } else game.world.removeObject(obj.tx, obj.ty);
   const c = game.world.tileCenter(obj.tx, obj.ty);
   floatText(game, c.x, c.y, `+${got} ${ITEMS[s.id].name.toLowerCase()}`);
+  game.events.emit('item:pickedUp', { id: s.id, n: got });
   return true;
 }
 

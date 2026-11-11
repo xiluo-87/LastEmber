@@ -19,7 +19,7 @@ export const AUDIO = {
   pitchJitter: 0.06,        // +-6% random pitch per one-shot so repeats don't grate
   foot: { walkSec: 0.46, sprintSec: 0.3, walkGain: 0.35, sprintGain: 0.75 },
   heart: { health: 25, minSec: 0.7, maxSec: 1.1, minGain: 0.35, maxGain: 0.9 },
-  amb: { windBase: 0.035, windSnow: 0.1, windBlizzard: 0.42, blizzardHowl: 0.16, fire: 0.5, fireRangeTiles: 9 },
+  amb: { windBase: 0.035, windSnow: 0.1, windBlizzard: 0.18, blizzardHowl: 0.14, fire: 0.12, fireRangeTiles: 9 },
 };
 
 // ---------- environment helpers (all guarded) ----------
@@ -228,6 +228,54 @@ const SOUNDS = {
       burst(s, t, { dur: 0.6, peak: 0.26 * o.v, f: 400 * j, fEnd: 1800 * j, q: 0.7, attack: 0.06 }),
       osc(s, t, { f: 220 * j, fEnd: 330, dur: 0.5, peak: 0.05 * o.v, attack: 0.1 }),
       burst(s, t + 0.3, { type: 'highpass', dur: 0.25, peak: 0.1 * o.v, f: 3000, q: 0.8 }));
+  },
+  fishCatch(s, t, o) {                      // splash, then a bright rising plip
+    const j = jit(o.pitch);
+    return latest(
+      burst(s, t, { dur: 0.35, peak: 0.22 * o.v, f: 700 * j, fEnd: 2400 * j, q: 0.8, attack: 0.02 }),
+      osc(s, t + 0.12, { f: 520 * j, fEnd: 1100 * j, dur: 0.14, peak: 0.12 * o.v, attack: 0.01 }),
+      osc(s, t + 0.28, { f: 780 * j, fEnd: 1500 * j, dur: 0.12, peak: 0.1 * o.v, attack: 0.01 }));
+  },
+  lineSnap(s, t, o) {                       // fishing line parts: sharp whip
+    const j = jit(o.pitch);
+    return latest(
+      burst(s, t, { type: 'highpass', dur: 0.07, peak: 0.26 * o.v, f: 3200 * j, q: 0.7 }),
+      osc(s, t, { f: 1600 * j, fEnd: 500, dur: 0.12, peak: 0.08 * o.v }));
+  },
+  plop(s, t, o) {                           // nothing bites: a single soft drip
+    return osc(s, t, { f: 420 * jit(o.pitch), fEnd: 260, dur: 0.12, peak: 0.1 * o.v, attack: 0.008 });
+  },
+  snareCaught(s, t, o) {                    // wooden thwack and a short spring
+    const j = jit(o.pitch);
+    return latest(
+      burst(s, t, { dur: 0.06, peak: 0.28 * o.v, f: 1100 * j, fEnd: 600, q: 2 }),
+      osc(s, t, { type: 'triangle', f: 150 * j, fEnd: 90, dur: 0.14, peak: 0.2 * o.v }),
+      osc(s, t + 0.05, { type: 'triangle', f: 700 * j, fEnd: 300, dur: 0.3, peak: 0.07 * o.v, vib: { rate: 22, depth: 90 } }));
+  },
+  fireOut(s, t, o) {                        // embers dying: long hiss and a soft thump
+    const j = jit(o.pitch);
+    return latest(
+      burst(s, t, { type: 'highpass', dur: 1.3, peak: 0.2 * o.v, f: 2200 * j, fEnd: 5200, q: 0.6, attack: 0.04 }),
+      osc(s, t, { f: 90 * j, fEnd: 45, dur: 0.3, peak: 0.12 * o.v }));
+  },
+  roomFormed(s, t, o) {                     // warm two-note rise: the shelter holds heat
+    const j = jit(o.pitch);
+    return latest(
+      osc(s, t, { type: 'triangle', f: 261.63 * j, dur: 0.7, peak: 0.1 * o.v, attack: 0.04 }),
+      osc(s, t + 0.16, { type: 'triangle', f: 392 * j, dur: 0.9, peak: 0.1 * o.v, attack: 0.04 }),
+      osc(s, t + 0.16, { type: 'sine', f: 523.25 * j, dur: 0.8, peak: 0.04 * o.v, attack: 0.05 }));
+  },
+  planeSwell(s, t, o) {                     // distant engine drone growing closer (rescue arriving)
+    return latest(
+      osc(s, t, { type: 'sawtooth', f: 58, fEnd: 82, dur: 3.6, peak: 0.12 * o.v, attack: 2.6, lp: 330, vib: { rate: 7.5, depth: 2.5 } }),
+      osc(s, t, { type: 'triangle', f: 116, fEnd: 160, dur: 3.6, peak: 0.07 * o.v, attack: 2.8, lp: 520 }),
+      burst(s, t, { dur: 3.6, peak: 0.07 * o.v, f: 320, fEnd: 700, q: 0.7, attack: 2.8 }));
+  },
+  planePass(s, t, o) {                      // overhead flyover: loud, then the pitch drops away
+    return latest(
+      osc(s, t, { type: 'sawtooth', f: 95, fEnd: 52, dur: 4.8, peak: 0.16 * o.v, attack: 1.3, lp: 380, vib: { rate: 8, depth: 3 } }),
+      osc(s, t, { type: 'triangle', f: 190, fEnd: 104, dur: 4.8, peak: 0.08 * o.v, attack: 1.3, lp: 600 }),
+      burst(s, t, { dur: 4.8, peak: 0.08 * o.v, f: 900, fEnd: 260, q: 0.6, attack: 1.2 }));
   },
   heartbeat(s, t, o) {                      // lub-dub
     const j = jit(o.pitch);

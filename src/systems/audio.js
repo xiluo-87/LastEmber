@@ -10,6 +10,13 @@ const HANDLERS = {
   'player:swing': () => ['whoosh', { v: 0.8 }],
   'gather:hit': (p) => [p.def?.gather?.tool === 'pickaxe' ? 'mine' : 'chop', { v: 0.9 }],
   'gather:harvest': () => ['pickup'],
+  'item:pickedUp': () => ['pickup', { v: 0.9 }],
+  'fishing:result': (p) => (p.result === 'fish' ? ['fishCatch'] : p.result === 'snap' ? ['lineSnap'] : ['plop']),
+  'snare:caught': () => ['snareCaught'],
+  'fire:out': () => ['fireOut'],
+  'room:formed': () => ['roomFormed'],
+  'rescue:arriving': () => ['planeSwell'],
+  'rescue:flyover': () => ['planePass'],
   'loot:opened': () => ['pickup', { v: 1.1 }],
   'radio:partFound': () => ['craft', { v: 1.3 }],
   'craft:done': () => ['craft'],
@@ -47,13 +54,23 @@ function rtOf(game) {
   return r;
 }
 
-// Wrap game.ui.toast once so 'bad' toasts (blocked actions, "Bag full", ...) also play the denied blip.
-// The UI object is created after systems init, so this is retried from update().
+// Refused player actions ("Bag full", "Needs an axe", "Too far away", greyed build cards...) play a denied blip. They all
+// surface as 'bad' toasts, but so do automatic warnings (low stats, bleeding, snapped line...), so the blip only fires when the
+// toast follows a real player input (tap / click / key) by a moment. The UI object is created after systems init: retried in update().
+const DENY_WINDOW_MS = 350;
+let lastInputAt = -1e9, inputHooked = false;
+/** Called for every real tap / click / key (window listeners below; tests call it directly). */
+export const notePlayerInput = () => { lastInputAt = performance.now(); };
+function hookInput() {
+  if (inputHooked || typeof window === 'undefined') return;
+  inputHooked = true;
+  window.addEventListener('pointerdown', notePlayerInput, true); window.addEventListener('keydown', notePlayerInput, true);
+}
 function hookToasts(game) {
   const ui = game.ui, toast = ui?.toast;
   if (typeof toast !== 'function' || toast.__audio) return;
   const wrapped = function (msg, kind, ...rest) {
-    if (kind === 'bad') audio.play('denied', { v: 0.6 });
+    if (kind === 'bad' && performance.now() - lastInputAt < DENY_WINDOW_MS) audio.play('denied', { v: 0.6 });
     return toast.call(this, msg, kind, ...rest);
   };
   wrapped.__audio = true;
@@ -77,6 +94,7 @@ export default {
   name: 'audio',
 
   init(game) {
+    hookInput();
     audio.attach();                 // browser only: unlocks the AudioContext on the first gesture
     game.audio = audio;             // engine handle (debugging / e2e: window.__game.audio.state())
     for (const [evt, fn] of Object.entries(HANDLERS)) {
