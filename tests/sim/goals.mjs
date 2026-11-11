@@ -332,7 +332,8 @@ export function createGoals(bot) {
   rule('projects', () => {
     const h = home();
     const steps = [
-      ['crate', () => { const crate = core.ofType('crash_site').find((o) => !o.depleted); return crate && core.work(crate, { press: true }) !== 'unreachable'; }],
+      ['wear', () => { for (const id of ['fur_coat', 'fur_boots', 'fur_hat']) { const w = S().inventory.clothing.some((c) => c && c.id === id); if (!w && has(id)) { core.wear(id); return true; } } return false; }],
+      ['crate', () => { const crate = core.ofType('crash_site').find((o) => !o.depleted && !core.isBlockedObj(o)); if (!crate) return false; bot.mem.crateT0 ??= game.time; if (game.time - bot.mem.crateT0 > 20) { core.blockObj(crate, 1e6); return false; } return core.work(crate, { press: true }) !== 'unreachable'; }],
       ['axe', () => !core.hasTool('axe') && makeTool('stone_axe', { stick: 2, stone: 2, fiber: 1 })],
       ['pickaxe', () => !core.hasTool('pickaxe') && makeTool('stone_pickaxe', { stick: 2, stone: 3, fiber: 1 })],
       ['campfire', () => {
@@ -357,6 +358,7 @@ export function createGoals(bot) {
       ['spear', () => !has('spear') && makeTool('spear', { stick: 2, flint: 1, fiber: 1 })],
       ['bow', () => bowProject()],
       ['bandage', () => prof.hunt && cnt('bandage') < 2 && (has('hide') || cnt('stick') > 100) && has('fiber') && core.canCraft('bandage_hide') && core.craft('bandage_hide')],
+      ['rack', () => rackProject()],
       ['cookcarry', () => { const f = homeFire(); if (!f || !f.lit || !(has('raw_meat') || has('raw_fish'))) return false; if (!walkToFire(f, 2.0)) return true; if (core.canCraft('cooked_meat') && has('raw_meat')) core.craft('cooked_meat'); else if (has('raw_fish')) core.craft('cooked_fish'); return true; }],
       ['food', () => {
         if (!prof.hunt || foodStock() >= prof.foodWant) return false;
@@ -368,7 +370,6 @@ export function createGoals(bot) {
       ['hide2', () => prof.bedroll && nStruct('bedroll') === 0 && !has('hide', 2) && prof.hunt && budget('hide2', 150, huntStep)],
       ['snares', () => snareProject()],
       ['bedroll', () => prof.bedroll && nStruct('bedroll') === 0 && has('hide', 2) && (cnt('fiber') < 3 ? fetch('fiber') : buildProj('bedroll', { fiber: 3, hide: 2 }))],
-      ['wear', () => { for (const id of ['fur_coat', 'fur_boots', 'fur_hat']) { const w = S().inventory.clothing.some((c) => c && c.id === id); if (!w && has(id)) { core.wear(id); return true; } } return false; }],
       ['coat', () => prof.clothing && !coatWorn('fur_coat') && has('hide', 5) && (cnt('rope') >= 2 ? craftAt('fur_coat', { hide: 5, rope: 2 }) : ropeFor(2))],
       ['boots', () => prof.clothing && !coatWorn('fur_boots') && has('hide', 3) && (cnt('rope') >= 1 ? craftAt('fur_boots', { hide: 3, rope: 1 }) : ropeFor(1))],
       ['hat', () => prof.clothing && !coatWorn('fur_hat') && has('hide', 2) && (cnt('rope') >= 1 ? craftAt('fur_hat', { hide: 2, rope: 1 }) : ropeFor(1))],
@@ -557,6 +558,25 @@ export function createGoals(bot) {
     if (!core.hasTool('bow')) return nStruct('workbench') > 0 && craftAt('bow', { stick: 3, rope: 2 }) || (cnt('rope') < 2 && nStruct('workbench') > 0 ? ropeFor(2) : false);
     if (cnt('arrow') < 8 && has('flint')) return craftAt('arrow', { stick: 1, flint: 1 });
     if (cnt('arrow') < 4 && !has('flint') && daySafe(80)) return fetch('flint');
+    return false;
+  }
+
+
+  function rackProject() {
+    if (!prof.rack || !prof.hunt) return false;
+    const rack = firstStruct('drying_rack');
+    if (!rack) {
+      if (!roomClosed() || nStruct('bedroll') === 0 || !daySafe(60)) return false;
+      if (cnt('stick') < 4) return false;
+      if (cnt('rope') < 2) return ropeFor(2);
+      return buildProj('drying_rack', { stick: 4, rope: 2 });
+    }
+    const done = rack.slots.filter((x) => x && x.done).length, used = rack.slots.filter(Boolean).length;
+    if ((done > 0 || (has('raw_meat') && used < rack.slots.length)) && !core.hostiles(8).length) {
+      if (core.distTilesTo(rack.tx, rack.ty) > 1.7) { nav.goTo(`rack`, (x, y) => walkable(x, y) && tileDist(x, y, rack.tx, rack.ty) <= 1.5 && tileDist(x, y, rack.tx, rack.ty) >= 1); return true; }
+      nav.stop(); if (game.time >= (bot.mem.rackT || 0)) { bot.mem.rackT = game.time + 0.5; game.input.press('interact'); const c = core.center(rack); const p = P(); nav.push(c.x - p.x, c.y - p.y); }
+      return true;
+    }
     return false;
   }
 

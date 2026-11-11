@@ -152,6 +152,7 @@ body.touch #debug { bottom: calc(200px + var(--sb)); left: calc(6px + var(--sl))
 /* phone/tablet portrait: toasts sit BELOW the stat bars + objective column (never over them) */
 @media (max-width: 799px) and (orientation: portrait) {
   .toasts { top: calc(150px + var(--st)); }
+  body.touch .hint { left: calc(10px + var(--sl)); transform: none; max-width: calc(100vw - 236px); white-space: normal; text-align: left; line-height: 1.2; }   /* keeps clear of the Use button */
   .banner { left: 58%; }
 }
 

@@ -5,20 +5,32 @@ import { createGame } from '../../src/game.js';
 import { createBot } from './bot.mjs';
 import * as saves from '../../src/save.js';
 import { TIME } from '../../src/data/balance.js';
+import { add as addItem } from '../../src/logic/inventory.js';
+const scenarioDay = () => 8;
 
 const args = Object.fromEntries(process.argv.slice(2).reduce((a, x, i, all) => (x.startsWith('--') ? [...a, [x.slice(2), all[i + 1] && !all[i + 1].startsWith('--') ? all[i + 1] : true]] : a), []));
 const STATS = ['health', 'hunger', 'thirst', 'warmth', 'stamina'];
 
 export function memStorage() { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) }; }
 
-export function runOne(profile, seed, { days = 8, saveEvery = true, maxSeconds = null, overrides = null } = {}) {
+/** Late-game scenario kit: a player who already did the mid-game (harness shortcut for testing the endgame; NOT used by the profile runs). */
+export const LATE_KIT = [['stone_axe', 1], ['stone_pickaxe', 1], ['spear', 1], ['bow', 1], ['fur_coat', 1], ['fur_boots', 1], ['fur_hat', 1], ['arrow', 12], ['wood', 20], ['stone', 20], ['stick', 20],
+  ['rope', 6], ['iron_ingot', 8], ['radio_antenna', 1], ['radio_battery', 1], ['radio_circuit', 1], ['cooked_meat', 12], ['flint', 2], ['fiber', 6]];
+
+export function runOne(profile, seed, { days = 8, saveEvery = true, maxSeconds = null, overrides = null, scenario = null } = {}) {
   const game = createGame({ storage: memStorage() });
   game.newGame(seed);
+  if (scenario === 'late') {
+    const inv = game.state.inventory;
+    for (const [id, n] of LATE_KIT) addItem(inv, id, n);
+    for (const id of ['fur_coat', 'fur_boots', 'fur_hat']) { const i = inv.hotbar.concat(inv.bag).findIndex((x) => x && x.id === id); void i; }
+    Object.assign(game.state.time, { day: scenarioDay(scenario), t: TIME.startT });
+  }
   const bot = createBot(game, profile, { profile: overrides || {} });
   let over = null;
   game.events.on('game:over', (e) => { over = e; });
   const perDay = {}, below = { health: 0, hunger: 0, thirst: 0, warmth: 0, stamina: 0 };
-  const limit = maxSeconds ?? days * TIME.dayLength;
+  const startDay = game.state.time.day, limit = maxSeconds ?? days * TIME.dayLength + (startDay - 1) * TIME.dayLength;
   const gameSecs = (st) => (st.time.day - 1) * TIME.dayLength + st.time.t - TIME.startT;   // game time (sleep runs x12)
   let tick = 0, lastDay = 1, roundTrips = 0, diverged = 0;
   const t0 = Date.now();
@@ -90,7 +102,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const overrides = args.set ? Object.fromEntries(String(args.set).split(',').map((kv) => { const [k, v] = kv.split('='); return [k, v === 'true' ? true : v === 'false' ? false : Number.isNaN(+v) ? v : +v]; })) : null;
     const rs = [];
     for (let s = first; s < first + n; s++) {
-      const r = runOne(pf, s, { days, overrides });
+      const r = runOne(pf, s, { days, overrides, scenario: args.scenario || null });
       rs.push(r);
       if (!args.quiet) console.log(`  ${pf} seed ${s}: ${r.won ? 'WON' : r.died ? 'died' : 'alive'} t=${f(r.secs)}s day ${r.day} ${r.cause} | fire ${f(r.miles.fire)} axe ${f(r.miles.axe)} shelter ${f(r.miles.shelter)} meal ${f(r.miles.meal)} | wall ${f(r.wall, 1)}s${r.errors ? ' ERR' + r.errors : ''}${r.status ? ' last:' + r.status : ''}`);
     }

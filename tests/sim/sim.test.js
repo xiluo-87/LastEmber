@@ -49,3 +49,16 @@ test('sloppy bot (fire only) does not survive to day 8; sim never produces NaN s
   assert.ok(r.died && r.day < 8, `sloppy survived to day ${r.day}`);
   assert.ok(!r.nan);
 });
+
+test('save -> load round trip restores the full state exactly (bot-driven, 3 checkpoints)', async () => {
+  const { createBot } = await import('./bot.mjs');
+  const { memStorage } = await import('./run.mjs');
+  const g = createGame({ storage: memStorage() }); g.newGame(3);
+  const b = createBot(g, 'competent');
+  const strip = (s) => { const c = JSON.parse(JSON.stringify(s)); delete c.survival.rate; return c; };   // rate = smoothed HUD trend, recomputed on load
+  for (const stopAt of [600, 1500, 2500]) {
+    while (g.mode === 'playing' && (g.state.time.day - 1) * 480 + g.state.time.t < stopAt) { b.think(); g.step(6); }
+    const before = strip(g.state); g.save(); assert.ok(g.loadGame(), 'load failed');
+    assert.deepEqual(strip(g.state), before, `state diverged after load at ${stopAt}`);
+  }
+});

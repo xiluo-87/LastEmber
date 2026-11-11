@@ -40,7 +40,7 @@ export const ITEMS = {
   berries: { id: 'berries', name: 'Berries', kind: 'food', stack: 20, color: '#c0394f', shape: 'berry', food: { hunger: 8, thirst: 2 } },
   raw_meat: { id: 'raw_meat', name: 'Raw meat', kind: 'food', stack: 20, color: '#c75b5b', shape: 'meat', food: { hunger: 15, poison: 0.4 } },
   cooked_meat: { id: 'cooked_meat', name: 'Cooked meat', kind: 'food', stack: 20, color: '#8a4b2a', shape: 'meat', food: { hunger: 35 } },
-  jerky: { id: 'jerky', name: 'Jerky', kind: 'food', stack: 20, color: '#6e3b22', shape: 'strip', food: { hunger: 25 } },
+  jerky: { id: 'jerky', name: 'Jerky', kind: 'food', stack: 20, color: '#6e3b22', shape: 'strip', food: { hunger: 40 } },
   raw_fish: { id: 'raw_fish', name: 'Raw fish', kind: 'food', stack: 20, color: '#7fa7c9', shape: 'fish', food: { hunger: 10, poison: 0.25 } }, // poison chance not in spec: assumed 25%
   cooked_fish: { id: 'cooked_fish', name: 'Cooked fish', kind: 'food', stack: 20, color: '#d9a066', shape: 'fish', food: { hunger: 28 } },
   snow_water: { id: 'snow_water', name: 'Snow water', kind: 'drink', stack: 20, color: '#b8d4e8', shape: 'drop', food: { thirst: 25, poison: 0.15 } },
