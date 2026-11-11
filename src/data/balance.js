@@ -99,7 +99,16 @@ export const SPAWN = { minDistFromPlayer: 14, caps: { rabbit: 14, deer: 8, creat
 export const ENDGAME = {
   towerPowerRadius: 4, signalNights: 3, enragedPackBonus: 2,
   flightMapRevealRadius: 20, partsRevealRadius: 20,
+  poweredFraction: 0.8,             // a signal night counts when the tower transmitted powered for >= this share of the night
+  waveAt: [0.08, 0.55],             // enraged-pack spawn points as a fraction of the night (early, late)
+  powerCheckEvery: 0.25,            // s between "is a fire within range" checks
+  rescue: { swell: 3.2, plane: 4.6, fade: 1.8, shadowSize: 150 },   // real seconds: engine swell -> flyover -> fade to victory
+  markerPad: 30, markerSeenRadius: 20,   // screen-edge compass markers: px inset from the screen edge
 };
+export const TOASTS = { maxVisible: 2, ms: 3000, maxMs: 3200, queueMax: 6 };
+// TUTORIAL: contextual one-time tips; thresholds
+export const TUTORIAL = { coldWarmth: 40, lowDurFrac: 0.2, checkEvery: 0.5, tickSeconds: 1.1, campfireSticks: 3, campfireStones: 3 };
+export const STATS = { maxStepTiles: 3 };   // run-stats tracker: ignore per-tick movement jumps bigger than this (teleports)
 
 export const WORLD_GEN = {
   clearingRadius: 6, wreckageMinDist: 40, wreckageCount: 3, wreckageSpacing: 30,

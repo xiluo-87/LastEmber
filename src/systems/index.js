@@ -26,6 +26,9 @@ import building from './building.js';
 import structures from './structures.js';
 import sleep from './sleep.js';
 import audio from './audio.js';
+import stats from './stats.js';
+import endgame from './endgame.js';
+import tutorial from './tutorial.js';
 
 export const SYSTEMS = [
   time,
@@ -43,5 +46,8 @@ export const SYSTEMS = [
   structures, // fires, racks, snares, fishing, workbench/chest handlers (game.structures)
   sleep,      // bedroll sleeping (game.sleep)
   audio,      // WebAudio sound effects + ambience (src/audio.js engine; presentation only)
+  stats,      // run statistics for the death/victory screens (state.runstats)
+  endgame,    // radio tower signal phase, enraged waves, compass markers, rescue -> victory
+  tutorial,   // onboarding objectives + one-time tips
   // append new systems below (one line each), e.g.:  weather, survival, gather, crafting, building, structures, creatures, combat, endgame, tutorial
 ];
