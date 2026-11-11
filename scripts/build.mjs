@@ -21,3 +21,15 @@ if (/src="[^"]*main\.js"|href="[^"]*style\.css"/.test(html)) throw new Error('in
 fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(root, 'dist/index.html'), html);
 console.log(`dist/index.html  ${(html.length / 1024).toFixed(1)} KB`);
+
+// Embeddable body fragment for hosts that supply their own doctype/html/head/body skeleton.
+const title = html.match(/<title>[\s\S]*?<\/title>/)[0];
+const styleTag = html.match(/<style>[\s\S]*?<\/style>/)[0].replace('<style>', '<style>:root{color-scheme:dark}');
+const bodyHtml = html.match(/<body>([\s\S]*)<\/body>/)[1].trim();
+const scriptAt = bodyHtml.indexOf('<script>');
+const embed = `${title}\n${styleTag}\n${bodyHtml.slice(0, scriptAt).trim()}\n${bodyHtml.slice(scriptAt)}\n`;
+const markup = embed.replace(/<script>[\s\S]*<\/script>/, '').replace(/<style>[\s\S]*?<\/style>/, '');
+if (/<!doctype|<\/?(html|head|body)[\s>]|charset|viewport|rel="icon"/i.test(markup)) throw new Error('embed fragment has skeleton tags');
+if (embed.indexOf('<title>') > 8192) throw new Error('title beyond 8KB');
+fs.writeFileSync(path.join(root, 'dist/last-ember.embed.html'), embed);
+console.log(`dist/last-ember.embed.html  ${(embed.length / 1024).toFixed(1)} KB`);
