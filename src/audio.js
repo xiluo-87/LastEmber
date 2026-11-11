@@ -19,7 +19,7 @@ export const AUDIO = {
   pitchJitter: 0.06,        // +-6% random pitch per one-shot so repeats don't grate
   foot: { walkSec: 0.46, sprintSec: 0.3, walkGain: 0.35, sprintGain: 0.75 },
   heart: { health: 25, minSec: 0.7, maxSec: 1.1, minGain: 0.35, maxGain: 0.9 },
-  amb: { windBase: 0.035, windSnow: 0.1, windBlizzard: 0.18, blizzardHowl: 0.14, fire: 0.12, fireRangeTiles: 9 },
+  amb: { windBase: 0.035, windSnow: 0.1, windBlizzard: 0.18, blizzardHowl: 0.14, fire: 0.07, fireRangeTiles: 6 },
 };
 
 // ---------- environment helpers (all guarded) ----------
@@ -323,6 +323,20 @@ const SOUNDS = {
 };
 
 // ---------- ambience loops: built once per context, level set with smoothed ramps ----------
+// 11 s of silence with ~2 soft pops a second at irregular times and sizes; long enough that the loop is not heard as a pattern.
+function crackleBuffer(s) {
+  if (s.crackle) return s.crackle;
+  const sr = s.ctx.sampleRate || 44100, len = Math.floor(sr * 11), buf = s.ctx.createBuffer(1, len, sr), d = buf.getChannelData(0);
+  let seed = 0x9e3779b9;
+  const rnd = () => { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; return ((seed >>> 0) % 100000) / 100000; };
+  let t = 0.2;
+  while (t < 10.8) {
+    const start = Math.floor(t * sr), dur = Math.floor(sr * (0.004 + rnd() * 0.018)), amp = 0.15 + rnd() * rnd() * 0.85;
+    for (let i = 0; i < dur && start + i < len; i++) d[start + i] += (rnd() * 2 - 1) * amp * Math.exp(-5 * i / dur);
+    t += 0.12 + rnd() * rnd() * 1.4;
+  }
+  return (s.crackle = buf);
+}
 function lfo(s, rate, depth) {                // returns a depth GainNode; connect it to an AudioParam
   const o = s.ctx.createOscillator(), d = s.ctx.createGain();
   o.frequency.value = rate; d.gain.value = depth;
@@ -352,12 +366,16 @@ const LOOPS = {
     src.start();
     return { level };
   },
-  fire(s) {                                   // campfire crackle: band-passed hiss with flutter
-    const src = loopSource(s), bp = filter(s, 'bandpass', 2600, 1.1), amp = gainNode(s, 1), level = gainNode(s, 0);
-    lfo(s, 4.7, 0.3).connect(amp.gain);
-    lfo(s, 13.0, 0.15).connect(amp.gain);
-    src.connect(bp); bp.connect(amp); amp.connect(level); level.connect(s.master);
-    src.start();
+  fire(s) {                                   // campfire: soft low roar plus sparse, irregular crackles (no steady hiss)
+    const level = gainNode(s, 0);
+    const bed = loopSource(s), lp = filter(s, 'lowpass', 320, 0.4), bedAmp = gainNode(s, 0.5);
+    lfo(s, 0.23, 0.12).connect(bedAmp.gain);
+    bed.connect(lp); lp.connect(bedAmp); bedAmp.connect(level);
+    const pops = s.ctx.createBufferSource(); pops.buffer = crackleBuffer(s); pops.loop = true;
+    const hp = filter(s, 'highpass', 900, 0.5), top = filter(s, 'lowpass', 4200, 0.5), popAmp = gainNode(s, 0.55);
+    pops.connect(hp); hp.connect(top); top.connect(popAmp); popAmp.connect(level);
+    level.connect(s.master);
+    bed.start(); pops.start();
     return { level };
   },
 };
