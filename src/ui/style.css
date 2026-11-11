@@ -103,7 +103,7 @@ body.touch .slot .key { display: none; }
 .panel header { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 6px 16px; }
 .panel h2 { margin: 0; font-size: 18px; }
 .panel .x { width: 44px; height: 44px; border-radius: 50%; border: 0; background: transparent; font-size: 28px; line-height: 1; }
-.panel-body { padding: 4px 16px 16px; overflow: auto; touch-action: pan-y; -webkit-overflow-scrolling: touch; }
+.panel-body { padding: 4px 16px 16px; min-height: 0; overflow: auto; overscroll-behavior: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch; }
 .muted { color: var(--muted); } .small { font-size: 12px; }
 .stack { display: flex; flex-direction: column; gap: 10px; }
 .btn { min-height: 48px; padding: 10px 18px; border-radius: 12px; border: 2px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.08); font-weight: 700; font-size: 16px; cursor: pointer; touch-action: manipulation; }
@@ -314,3 +314,6 @@ body.mode-title #debug { display: none; }
   .btn { min-height: 44px; padding: 6px 14px; }
   .panel-backdrop.bar { padding-bottom: calc(10px + var(--sb)); }   /* bottom-left corner: clear of the objective card and the centred hotbar */
 }
+
+/* let a drag that starts on a button inside a panel still scroll the panel */
+.panel-body button, .panel-body .btn, .panel-body .slot { touch-action: pan-y; }

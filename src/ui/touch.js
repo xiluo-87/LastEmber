@@ -75,9 +75,14 @@ export function createTouch(game, root, input) {
     btn.addEventListener('pointerup', up); btn.addEventListener('pointercancel', up); btn.addEventListener('lostpointercapture', up);
   }
 
-  // block scrolling / pinch-zoom / selection / context menu everywhere
+  // block scrolling / pinch-zoom / selection / context menu everywhere,
+  // except one-finger scrolling inside a panel's scrollable body
   const stop = (e) => e.preventDefault();
-  document.addEventListener('touchmove', stop, { passive: false });
+  const stopMove = (e) => {
+    if (e.touches && e.touches.length === 1 && e.target?.closest?.('.panel-body')) return;
+    e.preventDefault();
+  };
+  document.addEventListener('touchmove', stopMove, { passive: false });
   document.addEventListener('gesturestart', stop); document.addEventListener('gesturechange', stop);
   document.addEventListener('selectstart', stop); document.addEventListener('dblclick', stop);
 
