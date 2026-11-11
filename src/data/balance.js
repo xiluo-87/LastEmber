@@ -103,7 +103,7 @@ export const ENDGAME = {
   waveAt: [0.08, 0.55],             // enraged-pack spawn points as a fraction of the night (early, late)
   powerCheckEvery: 0.25,            // s between "is a fire within range" checks
   rescue: { swell: 3.2, plane: 4.6, fade: 1.8, shadowSize: 150 },   // real seconds: engine swell -> flyover -> fade to victory
-  markerPad: 30, touchBox: { w: 215, h: 270 },   // screen-edge compass markers: px inset from the screen edge
+  markerPad: 30, touchBox: { w: 215, h: 292 },   // screen-edge compass markers: px inset from the screen edge
 };
 export const TOASTS = { maxVisible: 2, ms: 3000, maxMs: 3200, queueMax: 6 };
 // TUTORIAL: contextual one-time tips; thresholds

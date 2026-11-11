@@ -40,13 +40,15 @@ export function createHud(game, root) {
   $('.hud-pause').addEventListener('pointerdown', (e) => { e.stopPropagation(); game.ui.panels.open('pause'); });
 
   const queue = [], visible = [];
+  function anchorToasts() {   // phone portrait: the stack starts below the stat bars / objective / chips, wherever those currently end
+    const narrow = typeof matchMedia !== 'undefined' && matchMedia('(max-width: 799px) and (orientation: portrait)').matches;
+    toasts.style.top = narrow ? `${Math.ceil($('.hud-stats').getBoundingClientRect().bottom + 8)}px` : '';
+  }
+  let anchorT = 0;
   function pump() {
     while (visible.length < TOASTS.maxVisible && queue.length) {
       const q = queue.shift(), t = document.createElement('div'), rec = { msg: q.msg };
-      if (!visible.length) {   // phone portrait: the stack starts below the stat bars / objective / chips, wherever those currently end
-        const narrow = typeof matchMedia !== 'undefined' && matchMedia('(max-width: 799px) and (orientation: portrait)').matches;
-        toasts.style.top = narrow ? `${Math.ceil($('.hud-stats').getBoundingClientRect().bottom + 8)}px` : '';
-      }
+      anchorToasts();
       t.className = `toast ${q.kind}`; t.textContent = q.msg; toasts.appendChild(t); visible.push(rec);
       setTimeout(() => { t.classList.add('out'); setTimeout(() => { t.remove(); visible.splice(visible.indexOf(rec), 1); pump(); }, 350); }, queue.length > 1 ? q.ms * 0.6 : q.ms);
     }
@@ -64,6 +66,7 @@ export function createHud(game, root) {
     setObjective(text) { obj.hidden = !text; obj.textContent = text ? `▸ ${text}` : ''; },
     update() {
       const st = game.state; if (!st) return;
+      if (visible.length && ++anchorT % 20 === 0) anchorToasts();
       const p = st.player;
       for (const [k] of STATS) {
         const b = bars[k], v = Math.max(0, Math.min(100, Math.round(p[k])));
