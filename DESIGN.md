@@ -28,7 +28,7 @@ Radio Tower and hold out until rescue. No zombies, no magic — weather, hunger 
 - Tile grid, `TILE = 32` world px. Map 128 x 128 tiles, seeded procedural (value noise). Border = impassable dense forest/cliffs.
 - Terrain types: `snow` (normal), `deep_snow` (move 60% speed), `ice` (frozen lake; fishing holes only here), `rock` (rocky ground; ore), `cliff` (impassable).
 - One object per tile max (resource node OR structure). Objects block movement unless flagged walkable.
-- Resource nodes: `tree` (wood, sticks; needs axe for wood, by hand gives sticks slowly), `dead_bush` (sticks, fiber), `rock_node` (stone, flint; needs pickaxe for stone, by hand: loose stones), `iron_node` (iron ore; pickaxe), `coal_node` (coal; pickaxe), `berry_bush` (berries, regrows in 2 days), `herb` (herbs), `loose_stone`/`loose_stick` ground pickups near spawn for bootstrapping.
+- Resource nodes: `tree` (wood, sticks; needs axe for wood, by hand gives sticks slowly), `dead_bush` (sticks, fiber), `rock_node` (stone, flint 60% per harvest; needs pickaxe for stone, by hand: loose stones), `iron_node` (3-4 iron ore; pickaxe), `coal_node` (3-5 coal; pickaxe), `berry_bush` (berries, regrows in 2 days), `herb` (herbs), `loose_stone`/`loose_stick` ground pickups near spawn for bootstrapping.
 - POIs: `crash_site` (spawn; a few starting supplies in a crate), 3 x `wreckage` far apart (>= 40 tiles from spawn, each in a different quadrant) each holding one radio part (antenna, battery, circuit board) + loot; 2-3 `bear_den` on rock terrain guarding iron/coal clusters.
 - Player spawns near map centre in a clearing.
 
@@ -36,7 +36,7 @@ Radio Tower and hold out until rescue. No zombies, no magic — weather, hunger 
 
 - Full day = 480 real seconds. Day 1: daylight 300s / night 180s. Night grows 6s per day (cap 300s).
 - Phases: dawn, day, dusk, night — smooth ambient light curve. Night is really dark: vision limited to light sources (fire radius 5 tiles, torch post 4, held torch 3.5) plus a tiny 1.5-tile personal radius.
-- Ambient temperature (°C): base = `-4 - 1.2*(day-1)` at noon (cap -40), night offset -10, smooth curve.
+- Ambient temperature (°C): base = `-4 - 1.2*(day-1)` at noon (floor -40), night offset -10, smooth curve. **Day-1 tutorial slack:** +8 °C on day 1, fading linearly to 0 over the first 240 s of day 2 (`TEMPERATURE.day1Bonus`), and no weather during day 1 (`WEATHER.day1ClearSeconds` 300).
 - Weather states: `clear`, `snow` (-3°C, light particles), `blizzard` (-12°C, wind, visibility 4 tiles, move speed 80%, unsheltered campfires burn fuel 2x). Blizzard: first possible day 2, chance grows with day; lasts 60–150s; HUD warning 30s before ("Storm coming").
 
 ## 5. Survival stats (0–100 each)
@@ -50,7 +50,7 @@ Radio Tower and hold out until rescue. No zombies, no magic — weather, hunger 
 | Stamina | sprint -18/s, swing -6; regen +14/s (halved if hunger or thirst <20) | can't sprint, swings 40% slower |
 
 Felt temperature = ambient + weather + heat sources (campfire +30 at centre falling linearly to 0 at 5 tiles; furnace +15/3 tiles; torch held +4) + shelter (enclosed room: +8 and wind/weather penalty removed; fire inside enclosed room gets x1.5 heat) + clothing (sum of equipped insulation) .
-Warmth rate per second = `clamp((felt - 10) * 0.06, -2.5, +3)` → comfortable at felt >= 10°C. So naked at -4°C: -0.84/s (≈2 min from full to zero). Clothing and fire are mandatory.
+Warmth rate per second = `clamp((felt - 10) * 0.06, -2.5, +3)` → comfortable at felt >= 10°C. So with only the starting jacket at day-1 noon (felt 8 °C) it is -0.12/s, but day-1 dusk/night (felt ≈ -2 °C) is ≈ -0.7/s, and from day 2 on it is -0.4 to -1.0/s: a player with no fire has warmth 0 after ≈ 5.5 min and is dead before dawn of day 2 (idle median 363 s). Clothing and fire are mandatory.
 
 Health regen: +0.25 HP/s only if hunger>50, thirst>50, warmth>50, not bleeding.
 
@@ -65,7 +65,7 @@ Sleep: bed/bedroll usable at night only when felt temp >= 5°C and no hostile wi
 ## 6. Items (stack 20 unless noted)
 
 Resources: wood, stick, stone, flint, fiber, rope, hide, bone, fat, iron_ore, iron_ingot, coal, herb, cloth (from crates), radio_antenna, radio_battery, radio_circuit (unique).
-Food/drink: berries (+8 hunger, +2 thirst), raw_meat (+15 hunger, poison risk), cooked_meat (+35), jerky (+25, from drying rack), raw_fish (+10, risk), cooked_fish (+28), snow_water (dirty: +25 thirst, risk), clean_water (+40 thirst), herbal_tea (+35 thirst, +15 warmth, cures poisoning).
+Food/drink: berries (+8 hunger, +2 thirst), raw_meat (+15 hunger, poison risk), cooked_meat (+35), jerky (+40, from drying rack; better than cooked meat but takes 2 minutes and a rack), raw_fish (+10, risk), cooked_fish (+28), snow_water (dirty: +25 thirst, risk), clean_water (+40 thirst), herbal_tea (+35 thirst, +15 warmth, cures poisoning).
 Containers: tin_pot (unique tool; needed to melt/boil at a fire).
 Medical: bandage (stops bleeding, +10 HP).
 Tools/weapons (non-stacking, durability): 
@@ -75,19 +75,19 @@ Tools/weapons (non-stacking, durability):
 | stone_axe | 10 | trees x3 | 60 |
 | stone_pickaxe | 8 | rock/ore | 60 |
 | spear | 18 (reach 1.8 tiles) | weapon | 50 |
-| bow (+arrow ammo) | 22 ranged 7 tiles | weapon | 80 |
+| bow (+arrow ammo, 6 arrows per craft) | 22 ranged 7 tiles | weapon | 80 |
 | torch | 6, light+heat, scares wolves | burns 180s when equipped | – |
 | iron_axe | 16, trees x6 | | 200 |
 | iron_pickaxe | 12 | | 200 |
 | iron_spear | 30 | | 150 |
-Clothing (3 slots head/body/feet; insulation °C): fur_hat +4, fur_coat +9, fur_boots +4, (start with) worn_jacket +3 in body slot.
+Clothing (3 slots head/body/feet; insulation °C): fur_hat +4, fur_coat +9, fur_boots +4, (start with) worn_jacket +4 in body slot.
 
 Inventory: 16 slots + 5-slot hotbar + 3 clothing slots. Tough: no weight, but slots are scarce.
 
 ## 7. Crafting
 
-Hand recipes (anywhere): rope (3 fiber), stone_axe (2 stick, 2 stone, 1 fiber), stone_pickaxe (2 stick, 3 stone, 1 fiber), spear (2 stick, 1 flint, 1 fiber), torch (1 stick, 1 fat OR 1 fiber+1 coal), bandage (1 cloth OR 2 fiber+1 herb), campfire kit etc. are *buildings* (see §8).
-Workbench: bow (3 stick, 2 rope), arrow x4 (1 stick, 1 flint), fur_hat (2 hide, 1 rope), fur_coat (5 hide, 2 rope), fur_boots (3 hide, 1 rope), tin_pot is found in crash-site crate only, iron tools (need iron_ingot: axe 2 ingot+2 stick+1 rope, pick 3+2+1, spear 2+2+1).
+Hand recipes (anywhere): rope (3 fiber), stone_axe (2 stick, 2 stone, 1 fiber), stone_pickaxe (2 stick, 3 stone, 1 fiber), spear (2 stick, 1 flint, 1 fiber), torch (1 stick, 1 fat OR 1 fiber+1 coal), bandage (1 cloth OR 2 fiber+1 herb OR 1 hide+1 fiber), campfire kit etc. are *buildings* (see §8).
+Workbench: bow (3 stick, 2 rope), arrow x6 (1 stick, 1 flint), fur_hat (2 hide, 1 rope), fur_coat (5 hide, 2 rope), fur_boots (3 hide, 1 rope), tin_pot is found in crash-site crate only, iron tools (need iron_ingot: axe 2 ingot+2 stick+1 rope, pick 3+2+1, spear 2+2+1).
 Campfire (must be lit; cooking takes time, UI is instant "cook" consuming 1 fuel-second budget — keep simple: instant craft at lit fire): cooked_meat, cooked_fish, snow_water (needs tin_pot; "gather snow" is free), clean_water (snow_water → boil), herbal_tea (clean_water + herb).
 Furnace (lit): iron_ingot (2 iron_ore + 1 coal).
 
@@ -104,7 +104,7 @@ Furnace (lit): iron_ingot (2 iron_ore + 1 coal).
 | bedroll | 3 fiber, 2 hide | 20 | walkable; sleep |
 | furnace | 8 stone, 2 coal | 120 | fuel like campfire (coal/wood only); smelting; heat +15 |
 | drying_rack | 4 stick, 2 rope | 30 | raw_meat → jerky in 120s, up to 3 at once |
-| snare | 2 stick, 1 rope | 10 | walkable; each dawn 35% chance to hold a rabbit (1 raw_meat, 1 hide) if >= 6 tiles from a lit fire |
+| snare | 2 stick, 1 rope | 10 | walkable; each dawn 50% chance to hold a rabbit (1 raw_meat, 1 hide) if >= 6 tiles from a lit fire |
 | spike_barricade | 3 stick, 1 wood | 60 | blocks; creatures touching/attacking take 8 dmg/s |
 | torch_post | 2 stick, 1 fat | 20 | light 4 tiles, burns 300s then needs fat/coal refuel; wolves avoid lit radius unless enraged |
 | fishing_hole | 1 stick (needs pickaxe or axe; only on ice) | – | interact: 6s cast, 55% raw_fish; 8% line snaps |
@@ -187,3 +187,50 @@ ARCHITECTURE.md   (maintained by engineers: real APIs, state shape, how to add a
 - Fresh load → title → playable within 2 taps on a 390x844 phone viewport and on 1280x800 desktop; no console errors.
 - A competent player can: gather, craft tools, build & light a fire, wall a room, cook, drink, sleep, hunt, survive blizzards, find parts, build the tower, win. An idle player dies on night 1.
 - Save/reload restores everything. Death and victory flows work. `npm test` green. `dist/index.html` works opened standalone.
+
+
+## Appendix A. Balance log (headless playtest bot, `tests/sim/`)
+
+**Tooling.** `npm run sim` = 4 profiles x 10 seeds x 14 days (`idle`, `sloppy`, `competent`, `rusher`; options `--profile a,b --seeds N --first S --days D --set key=val --scenario late`). `npm run test:sim` = fast subset (~15 s) that asserts the targets below. `node tests/sim/baseline.mjs` re-runs the ORIGINAL numbers for before/after tables. `node tests/sim/worldcheck.mjs 40 15` = resource census near spawn. The bot plays through the real input/interaction/crafting/build paths (touch joystick intents, Action button, `game.crafting.craft`, build menu + tap-to-place, `useStack`); it only *reads* state. Every sim-day the run is saved and loaded; the full state must be identical after load. All gameplay randomness uses one seeded stream (`state.rngA`, `game.rand()`), so runs reproduce.
+
+**Before -> after (10 seeds, 14 days, same bot, seeded RNG):**
+
+| profile | before (original numbers) | after (final numbers) |
+|---|---|---|
+| idle | dead at 218 s (all 10), warmth 0 at ~150 s | dead 349-363 s (8 hypothermia, 2 wolf); warmth 0 not before ~330 s |
+| sloppy | median 1271 s (day 3), 0/10 reach day 6 | median 1726 s (day 4), 0/10 reach day 6, 9/10 reach day 3 |
+| competent | median day 14, 7/10 die; first hunt 600 s, shelter 177 s, bedroll 1624 s | median day 12, 9/10 die by day 14 (6 wolf, 3 cold); 10/10 reach day 6, 9/10 day 9; first hunt 181 s, shelter 118 s, bedroll 963 s |
+| rusher | median 1290 s (day 3) | median 1703 s (day 4); 7/10 find >=1 radio part, none finish |
+
+Competent milestones (median, seconds of game time): first axe 8, pickaxe 19, campfire lit 43, workbench 56, shelter complete 118 (first dusk is at ~260), bow 148, first meal 364, bedroll+first sleep ~1200, drying rack + snares ~1000. Daytime split days 2-8 (awake): food/hunting 27%, drinking/warming at the fire 27%, fuel + wood 12%, building/crafting 10%. Stats do dip: warmth < 25 for ~140 s per run, thirst < 25 ~100 s, health < 25 ~22 s.
+
+**Number changes and why**
+| value | old | new | evidence |
+|---|---|---|---|
+| day-1 ambient bonus | none | +8 °C day 1, fade over first 240 s of day 2; day-1 weather-free 120 s -> 300 s | idle warmth hit 0 at 152 s; now >= 330 s and still dead before dawn. Later days unchanged (sloppy stays at day 3-5) |
+| worn_jacket | +3 | +4 | tuning of the same slack |
+| rock_node flint chance | 35% | 60% | arrows/flint were the hunting bottleneck: the bot spent ~120 s per day mining flint and starved |
+| arrow craft | x4 | x6 | same |
+| bandage | cloth / fiber+herb | + hide+fiber | bleeding (until bandaged) was a top-3 killer; cloth only exists in crates, herbs are ~0-2 within 15 tiles |
+| iron_node / coal_node yield | 2-3 / 2-4 | 3-4 / 3-5 | worst seeds had 6 iron nodes (15 ore = 7 ingots, barely the tower); now >= 21 ore |
+| snare dawn chance | 35% | 50% | snares were not worth the rope vs. bow hunting |
+| jerky hunger | 25 | 40 | cooking is instant, so a rack that makes weaker food was strictly useless |
+
+**Checked and left alone:** resource density (30 seeds: >= 13 trees, >= 5 dead bushes (fiber), >= 3 boulders, >= 2 berry bushes within 15 tiles), hunger/thirst rates, wolf escalation, wall/spike numbers, 16 slots (the bot filled the bag with 3 stacks of sticks/stone and had to manage it: slots do create choices), durability (a stone axe lasts ~15 trees; the bot remade tools about every 2 days).
+
+**Bugs found and fixed (regression tests in tests/unit/determinism.test.js and tests/sim/sim.test.js)**
+* Creature AI, drops, snares, fishing, poison, arrow recovery used `Math.random`: sims were not reproducible and a save/load did not continue the random stream. Now one seeded stream in `state.rngA`.
+* `Math.random` monkey-patches in 3 existing unit tests replaced by `game.rand`.
+* `game.building.list(type)` returns a `Set` (not an array): fine in the game, a trap for tools; documented here.
+* Save -> load round trip: full-state comparison is exact except `survival.rate` (the smoothed HUD trend arrow, recomputed on load) - cosmetic.
+* Build mode left in 'dismantle' silently replaces the Action target (the player can no longer chop or gather and gets no hint). Bot-side guard added; a human can hit this by closing the build bar with the Action button held. Candidate UI fix for the QA engineer: cancel dismantle mode when the build bar closes.
+
+**What the bot cannot do (bot limits, not game limits)**
+It does not fish, craft herbal tea, use torches/torch posts, scout with the flight map, run forward camps, or sneak up on deer. It never finishes the endgame: it collects 2-3 radio parts by day 6-9 and sometimes smelts a few ingots and crafts iron tools, but wolves or cold end the run first (days 9-14). The tower/signal code is exercised only by the existing headless 3-night endgame unit test, not by the bot. Stone-wall upgrade is slow (one wall at a time), so the bot usually faces day-8+ packs behind wood.
+
+**Remaining balance risks for a human playtester**
+1. Wolves at day 8+ (packs of 5+ ignoring fire) kill a wooden base quickly. Is stone wall + spikes + a spear enough, and is a signal night (+2 wolves) winnable? Not demonstrated by the bot.
+2. Rabbits are nearly unreachable with a spear (the bot only hunts with the bow); is the bow-first progression clear to a new player? Flint/arrows gate food.
+3. Cooking and water boiling are instant and free; fuel is the only cost. Fishing (6 s cast, 55%) is likely the best food source where a lake is close.
+4. Day 1 is tight: first dusk at ~260 s after start; the bot has a closed shelter at ~120 s, a human may not.
+5. A bear on an iron cluster is the main danger of iron runs (the bot killed bears with bow/spear at ~15% hp loss per fight); a first bear fight at full hp is untested with humans.

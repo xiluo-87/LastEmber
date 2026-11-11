@@ -40,7 +40,7 @@ state = {
 * Add your slice by giving your system `defaults: () => ({...})` (key = `system.stateKey ?? system.name`). It is created for new games AND filled in for old saves. Never edit `state.js` for a slice.
 * Objects (`world.objects`): `{ type, tx, ty, variant?, hp?, depleted?, loot?, part?, …your fields }`. `type` must exist in `STRUCTURES` or `NODES` (`objectDef(type)`).
 * Everything must survive `JSON.parse(JSON.stringify(state))` (no Map/Set/functions/NaN). Runtime caches live on `game`, rebuilt in `onLoad`.
-* Persistent randomness: world gen uses `rng.js` (`createRng(seed)`); gameplay randomness may use `Math.random()`.
+* Persistent randomness: world gen uses `rng.js` (`createRng(seed)`); gameplay randomness must use the seeded stream `game.rand()` (state `rngA`, `logic/grand.js`), never `Math.random()`, so runs are reproducible and survive save/load.
 
 ## 3. The `game` object (`src/game.js`)
 
