@@ -312,4 +312,5 @@ body.mode-title #debug { display: none; }
   .bgrid { grid-template-columns: repeat(3, 1fr); }
   .bcard { min-height: 74px; }
   .btn { min-height: 44px; padding: 6px 14px; }
+  .panel-backdrop.bar { padding-bottom: calc(10px + var(--sb)); }   /* bottom-left corner: clear of the objective card and the centred hotbar */
 }

@@ -23,8 +23,9 @@ export function clockString(t) {
 }
 
 /** Ambient temperature in degC (before weather offsets): noon base falls per day; night colder, smooth via light. */
-export function ambientTemperature(day, light) {
-  const dayBase = Math.max(TEMPERATURE.floor, TEMPERATURE.noonBase + TEMPERATURE.perDay * (day - 1));
+export function ambientTemperature(day, light, t = 0) {
+  const bonus = day === 1 ? TEMPERATURE.day1Bonus : day === 2 ? TEMPERATURE.day1Bonus * Math.max(0, 1 - t / TEMPERATURE.day1BonusFadeSeconds) : 0;
+  const dayBase = Math.max(TEMPERATURE.floor, TEMPERATURE.noonBase + TEMPERATURE.perDay * (day - 1)) + bonus;
   const k = (1 - light) / (1 - TIME.minAmbient);
   return dayBase + TEMPERATURE.nightOffset * k;
 }

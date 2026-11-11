@@ -92,7 +92,7 @@ function computeMarkers(game, out = []) {
   const st = game.state, eg = st?.endgame, rt = game.endgameRt, R = game.renderer, v = game.view;
   if (!eg || !R || !v || game.mode !== 'playing') return out;
   const hasMap = count(st.inventory, 'flight_map') > 0;
-  const p = st.player, touch = document.body.classList.contains('touch'), inset = { top: 56, bottom: touch ? 96 : 76, left: 0, right: 0 };
+  const p = st.player, touch = document.body.classList.contains('touch'), inset = { top: 0, bottom: 0, left: 0, right: 0 };   // ui/compass.js slides markers clear of the HUD controls, so the whole screen edge is usable (landscape phones)
   const place = (kind, key, tx, ty, label) => {
     const c = game.world.tileCenter(tx, ty), s = R.worldToScreen(c.x, c.y);
     const m = edgeMarker(s.x, s.y, v.w, v.h, ENDGAME.markerPad, inset);

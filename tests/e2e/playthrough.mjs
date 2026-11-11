@@ -86,11 +86,12 @@ for (const view of views) {
     // the tile in front is the crate: choose another tile by tapping the world on the LEFT (joystick) side, then confirm with Place
     const pt = await g(() => __game.world.worldToTile(__game.state.player.x, __game.state.player.y));
     const [x, y] = await P.tileScreen(pt.tx - 2, pt.ty + 1);
-    await P.tapAt(x, y); await sleep(200);
+    if (P.touchy) await P.tapAt(x, y); else { await P.page.mouse.move(x, y); await P.page.mouse.move(x + 1, y + 1); }   // desktop: hover ghost follows the mouse
+    await sleep(250);
     await snap('ghost-moved-left');
-    check(await g(([a, b]) => __game.building.ghost.tx === a && __game.building.ghost.ty === b && __game.building.ghost.valid, [pt.tx - 2, pt.ty + 1]), `${view}: tapping a tile on the left side moved the ghost there`);
+    check(await g(([a, b]) => __game.building.ghost.tx === a && __game.building.ghost.ty === b && __game.building.ghost.valid, [pt.tx - 2, pt.ty + 1]), `${view}: ${P.touchy ? 'tapping a tile on the left side' : 'hovering the mouse over a tile'} moved the ghost there`);
   }
-  if (P.touchy) await P.tap('.tbtn-action'); else await P.tapAt(...(await P.tileScreen(...(await g(() => [__game.building.ghost.tx, __game.building.ghost.ty])))));
+  if (P.touchy) await P.tap('.tbtn-action'); else await P.tapAt(...(await P.tileScreen(...(await g(() => [__game.building.ghost.tx, __game.building.ghost.ty])))));   // desktop: click the hovered ghost tile
   await sleep(400);
   const fire = await P.nearest('campfire');
   check(!!fire, `${view}: campfire placed`);

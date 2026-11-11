@@ -8,7 +8,7 @@ function derive(t) {
   const p = phaseAt(t.day, t.t);
   t.phase = p.phase; t.light = p.light; t.phaseT = p.phaseT; t.phaseLen = p.phaseLen;
   t.clock = clockString(t.t);
-  t.ambient = ambientTemperature(t.day, t.light);
+  t.ambient = ambientTemperature(t.day, t.light, t.t);
 }
 
 export default {

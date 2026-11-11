@@ -1,6 +1,5 @@
 // Screen-edge compass markers (DESIGN §10): wreckage sites (flight map / proximity) and the "home" campfire when off-screen.
 // Data comes from game.endgame.markers() (systems/endgame.js, pure rules in logic/endgame.js). Also fades the HUD during the rescue.
-import { ENDGAME } from '../data/balance.js';
 const ICON = {
   wreck: '<svg viewBox="0 0 24 24"><path d="M22 11 15 10 11 3H8l2 7-5 1-2-3H1l1 4-1 4h2l2-3 5 1-2 7h3l4-7 7-1z" fill="currentColor"/></svg>',
   home: '<svg viewBox="0 0 24 24"><path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3.500 2-4.500 0 2 1 3 2 3 0-4-1-6 1-9.500z" fill="currentColor"/></svg>',
@@ -25,8 +24,9 @@ export function createCompass(game, root) {
   }
   /** Slide the marker along the edge rectangle until its footprint is clear of every obstacle and of earlier markers. */
   function resolve(m, placed) {
-    const v = game.view, touch = body.classList.contains('touch'), pad = ENDGAME.markerPad;
-    const l = pad, r = v.w - pad, t = pad + 56, b = v.h - pad - (touch ? 96 : 76), W = r - l, H = b - t, per = 2 * (W + H);
+    const v = game.view;
+    const l = -BOX.l, r = v.w + BOX.l, t = -BOX.t + 6, b = v.h - BOX.b - 2, W = r - l, H = b - t, per = 2 * (W + H);   // the whole badge + label stays on screen
+    m.x = Math.min(r, Math.max(l, m.x)); m.y = Math.min(b, Math.max(t, m.y));
     const free = (x, y) => !rects.some((a) => hit(a, x, y)) && !placed.some((q) => hit({ x0: q.x + BOX.l, y0: q.y + BOX.t, x1: q.x + BOX.r, y1: q.y + BOX.b }, x, y, 4));
     if (W <= 0 || H <= 0 || free(m.x, m.y)) return;
     // perimeter coordinate (clockwise from the top-left corner)

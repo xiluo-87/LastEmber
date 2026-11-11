@@ -23,7 +23,8 @@ export const TIME = {
 };
 
 export const TEMPERATURE = {
-  noonBase: 4, perDay: -1.9, floor: -40, nightOffset: -10,
+  noonBase: -4, perDay: -1.2, floor: -40, nightOffset: -10,
+  day1Bonus: 8, day1BonusFadeSeconds: 240,   // day-1 tutorial slack: +8 degC on day 1, fading out over the first half of day 2
   snow: -3, blizzard: -12,
   comfort: 10, warmthRate: 0.06, rateMin: -2.5, rateMax: 3,
   campfire: { peak: 30, radius: 5 }, furnace: { peak: 15, radius: 3 }, torchHeld: 4,
