@@ -32,7 +32,11 @@ export const TEMPERATURE = {
 
 export const WEATHER = {
   types: ['clear', 'snow', 'blizzard'],
-  blizzard: { firstDay: 2, minDuration: 60, maxDuration: 150, warnSeconds: 30, moveMult: 0.8, visibilityTiles: 4, shelterlessFuelMult: 2 },
+  blizzard: { firstDay: 2, minDuration: 60, maxDuration: 150, warnSeconds: 30, moveMult: 0.8, visibilityTiles: 4, shelterlessFuelMult: 2,
+    chanceBase: 0.25, chancePerDay: 0.1, chanceMax: 0.85 },        // chance of a blizzard on a given day (day >= firstDay)
+  snow: { chance: 0.5, minDuration: 60, maxDuration: 180 },       // light-snow episode chance per day
+  day1ClearSeconds: 120,           // day 1: no weather in the first N seconds of the day
+  fadeSeconds: 4,                  // intensity / temperature-offset ease time on weather change
 };
 
 export const SURVIVAL = {
@@ -48,6 +52,22 @@ export const SURVIVAL = {
   poison: { duration: 60, dmgPerSec: 0.3, hungerMult: 2, rawMeat: 0.4, snowWater: 0.15 },
   eatSnow: { thirst: 8, warmth: -10 },
   sleep: { minFeltTemp: 5, hostileRadius: 8, hungerThirstMult: 0.5 },
+  workSeconds: 1.2,                 // hunger x1.5 "working" window after a swing/gather (noteWork)
+  trendSmoothing: 1.5,              // seconds, smoothing of the warmth-rate readout (HUD arrow)
+  trendThreshold: 0.12,             // |rate| below this shows no trend arrow
+  swingSlowMult: 1.4,               // swings are 40% slower at zero stamina
+  warmBonusToastBelow: 25,
+};
+
+// Screen effects (render/screenfx.js, render/particles.js). Pooled; sized for phones.
+export const FX = {
+  snowParticles: 70, blizzardParticles: 260, maxParticles: 260,
+  snowFall: [55, 110], snowDrift: -18,            // px/s
+  blizzardFall: [120, 260], blizzardWind: [-640, -380],
+  frostBelowWarmth: 25, frostMaxAlpha: 0.85,
+  damageFlashSeconds: 0.45, damageFlashAlpha: 0.55,
+  lowHealthBelow: 25, lowHealthPulseHz: 1.4,
+  fogMaxAlpha: 0.93, fogClearTiles: 1.2,
 };
 
 export const PLAYER = {

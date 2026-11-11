@@ -11,11 +11,16 @@ const ICONS = {
 const STATS = [
   ['health', '#e63946'], ['hunger', '#e9a23b'], ['thirst', '#4aa3df'], ['warmth', '#ff7a45'], ['stamina', '#7bd389'],
 ];
-const WEATHER_ICON = { clear: '', snow: '*', blizzard: '**' };
+const WEATHER_ICON = {
+  clear: '',
+  snow: '<svg viewBox="0 0 24 24" aria-label="Snowing"><path d="M12 2v20M3.300 7 20.700 17M3.300 17 20.700 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>',
+  blizzard: '<svg viewBox="0 0 24 24" aria-label="Blizzard"><path d="M3 8h11a3 3 0 1 0-3-3M3 13h16a3 3 0 1 1-3 3M3 18h8" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" fill="none"/></svg>',
+};
+const TREND = { up: '▲', down: '▼', flat: '' };
 /** Status-effect chip labels: statuses[id] = { label, color }. Systems can add: import { STATUS_DEFS } and assign. */
 export const STATUS_DEFS = {
   bleeding: { label: 'Bleeding', color: '#e63946' }, poison: { label: 'Poisoned', color: '#8fbf5a' },
-  sleeping: { label: 'Sleeping', color: '#4aa3df' },
+  sleeping: { label: 'Sleeping', color: '#4aa3df' }, food_poisoning: { label: 'Food poisoning', color: '#8fbf5a' },
 };
 
 export function createHud(game, root) {
@@ -25,16 +30,16 @@ export function createHud(game, root) {
       <div class="chips"></div><div class="objective" hidden></div></div>
     <div class="hud-top"><div class="pill"><span class="day">Day 1</span>
       <svg class="dial" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15" class="dial-bg"/><path class="dial-day" d=""/><line class="dial-hand" x1="18" y1="18" x2="18" y2="6"/></svg>
-      <span class="clock">06:00</span><span class="temp">-4&deg;C</span><span class="wx"></span></div></div>
+      <span class="clock">06:00</span><span class="temp">-4&deg;C</span><span class="trend"></span><span class="wx"></span></div></div>
     <button class="hud-pause" type="button" aria-label="Pause">II</button>
     <div class="banner" hidden></div><div class="toasts"></div><div class="hint" hidden></div>`;
   const $ = (s) => root.querySelector(s);
   const bars = Object.fromEntries(STATS.map(([k]) => [k, { el: $(`.bar[data-k="${k}"]`), fill: $(`.bar[data-k="${k}"] .fill`), v: -1 }]));
-  const dayEl = $('.day'), clockEl = $('.clock'), tempEl = $('.temp'), wxEl = $('.wx'), hand = $('.dial-hand'), dialDay = $('.dial-day');
+  const dayEl = $('.day'), clockEl = $('.clock'), tempEl = $('.temp'), trendEl = $('.trend'), wxEl = $('.wx'), hand = $('.dial-hand'), dialDay = $('.dial-day');
   const chips = $('.chips'), obj = $('.objective'), banner = $('.banner'), toasts = $('.toasts'), hint = $('.hint');
   $('.hud-pause').addEventListener('pointerdown', (e) => { e.stopPropagation(); game.ui.panels.open('pause'); });
 
-  let lastChips = '', lastHint = '', lastDial = '';
+  let lastChips = '', lastHint = '', lastDial = '', lastTemp = '', lastTrend = '', lastWx = '';
   const api = {
     toast(msg, kind = 'info', ms = 2600) {
       const t = document.createElement('div'); t.className = `toast ${kind}`; t.textContent = msg;
@@ -53,8 +58,14 @@ export function createHud(game, root) {
       }
       const t = st.time; if (!t) return;
       dayEl.textContent = `Day ${t.day}`; clockEl.textContent = t.clock;
-      tempEl.textContent = `${Math.round(t.ambient + (st.weather?.offset || 0))}°C`;
-      wxEl.textContent = WEATHER_ICON[st.weather?.type] || '';
+      // FELT temperature (survival system) + warmth trend arrow; falls back to ambient before the survival system has run
+      const sv = st.survival, felt = sv ? sv.felt : t.ambient + (st.weather?.offset || 0);
+      const tt = `${Math.round(felt)}°C`;
+      if (tt !== lastTemp) { lastTemp = tt; tempEl.textContent = tt; tempEl.dataset.zone = felt < 0 ? 'cold' : felt < 10 ? 'cool' : 'warm'; }
+      const trend = !sv ? 'flat' : sv.rate > SURVIVAL.trendThreshold ? 'up' : sv.rate < -SURVIVAL.trendThreshold ? 'down' : 'flat';
+      if (trend !== lastTrend) { lastTrend = trend; trendEl.textContent = TREND[trend]; trendEl.dataset.t = trend; }
+      const wx = st.weather?.type || 'clear';
+      if (wx !== lastWx) { lastWx = wx; wxEl.innerHTML = WEATHER_ICON[wx] || ''; }
       hand.setAttribute('transform', `rotate(${(t.t / 480) * 360} 18 18)`);
       const dl = 480 - Math.min(300, 180 + 6 * (t.day - 1)), end = (dl / 480) * Math.PI * 2 - Math.PI / 2;
       const d = `M18 18 L18 3 A15 15 0 ${dl / 480 > 0.5 ? 1 : 0} 1 ${(18 + 15 * Math.cos(end)).toFixed(2)} ${(18 + 15 * Math.sin(end)).toFixed(2)} Z`;

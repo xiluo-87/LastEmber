@@ -1,0 +1,47 @@
+// Survival visuals: forces night / blizzard / frost / damage and screenshots a 390x844 phone viewport. Usage: node tests/e2e/survival.mjs
+import { createRequire } from 'node:module';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { startServer } from '../../scripts/serve.mjs';
+const { chromium } = createRequire(import.meta.url)('playwright');
+const out = path.join(path.dirname(fileURLToPath(import.meta.url)), 'out');
+const server = await startServer(0);
+const url = `http://localhost:${server.address().port}/?seed=7&debug=1`;
+const browser = await chromium.launch();
+const errors = [];
+const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+const page = await ctx.newPage();
+page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(m.text()); });
+page.on('pageerror', (e) => errors.push(e.message));
+await page.goto(url);
+await page.waitForFunction(() => window.__game && __game.state);
+await page.click('#btn-new');
+await page.waitForFunction(() => __game.mode === 'playing');
+const shot = async (n) => { await page.waitForTimeout(500); await page.screenshot({ path: path.join(out, `survival-${n}.png`) }); };
+const set = (fn, arg) => page.evaluate(fn, arg);
+
+await set(() => { __game.state.time.t = 150; });
+await shot('1-day-snow-forced'); // baseline
+await set(() => { __game.weather.force('snow', 999); });
+await page.waitForTimeout(5000); await shot('2-snow');
+await set(() => { __game.state.time.day = 3; __game.state.time.t = 120; __game.weather.force('blizzard', 999); });
+await page.waitForTimeout(6000); await shot('3-blizzard-day');
+await set(() => { Object.assign(__game.state.player, { warmth: 12 }); });
+await page.waitForTimeout(800); await shot('4-blizzard-frost');
+await set(() => { __game.state.time.t = 330; __game.state.player.warmth = 60; });
+await page.waitForTimeout(1200); await shot('5-blizzard-night');
+await set(() => { __game.weather.force(null); __game.state.weather.forced = null; __game.state.weather.plan = [{ type: 'blizzard', start: __game.state.time.t + 20, end: __game.state.time.t + 90 }]; __game.state.weather.planDay = __game.state.time.day; });
+await page.waitForTimeout(1500); await shot('6-storm-warning');
+await set(() => { __game.weather.force('clear', 999); Object.assign(__game.state.player, { warmth: 8, health: 20, hunger: 20, thirst: 15 }); __game.survival.applyEffect(__game, 'bleeding'); __game.survival.applyEffect(__game, 'poison'); __game.state.time.t = 150; });
+await page.waitForTimeout(1500); await shot('7-critical');
+await set(() => { __game.survival.damagePlayer(__game, 5, 'wolf', { iframes: false }); });
+await page.waitForTimeout(120); await page.screenshot({ path: path.join(out, 'survival-8-damage.png') });
+await set(() => { __game.survival.damagePlayer(__game, 500, 'wolf', { iframes: false }); });
+await page.waitForSelector('.panel-gameover');
+await shot('9-death');
+console.log(await page.evaluate(() => document.querySelector('.panel-gameover').innerText));
+await page.click('.panel-gameover [data-a="again"]');
+await page.waitForFunction(() => __game.mode === 'playing' && __game.state.player.health === 100);
+console.log('restarted ok; save cleared:', await page.evaluate(() => !__game.hasSave()), 'errors:', errors);
+await browser.close(); server.close();
+process.exit(errors.length ? 1 : 0);

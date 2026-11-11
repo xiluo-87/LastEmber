@@ -55,6 +55,15 @@ body.mode-playing #hud { display: block; }
 .pill .day { font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; }
 .pill .clock { font-variant-numeric: tabular-nums; }
 .pill .temp { color: #9fd3ff; font-variant-numeric: tabular-nums; }
+.pill .temp[data-zone="cool"] { color: #d6ecff; } .pill .temp[data-zone="warm"] { color: #ffb05c; }
+.pill .trend { font-size: 10px; margin-left: -5px; width: 9px; } .pill .trend[data-t="up"] { color: var(--good); } .pill .trend[data-t="down"] { color: var(--danger); }
+.pill .wx { display: flex; } .pill .wx:empty { display: none; } .pill .wx svg { width: 20px; height: 20px; color: #cfe6ff; }
+.chip { white-space: nowrap; }
+.panel-gameover .x { display: none; }
+.go-cause { font-size: 20px; font-weight: 700; margin: 4px 0 2px; color: var(--danger); }
+.go-tip { margin: 0 0 12px; color: var(--muted); }
+.go-stats { display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; margin: 0 0 16px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.06); }
+.go-stats b { text-align: right; font-variant-numeric: tabular-nums; }
 .dial { width: 28px; height: 28px; }
 .dial-bg { fill: #1a2a44; stroke: rgba(255,255,255,0.4); stroke-width: 1.5; }
 .dial-day { fill: #e9c46a; }
@@ -130,7 +139,9 @@ body.touch #debug { bottom: auto; top: calc(150px + var(--st)); }
 @media (max-width: 560px) {
   .hud-stats { width: 118px; }
   .hud-top { justify-content: flex-end; padding-right: calc(62px + var(--sr)); }
-  .pill { gap: 6px; padding: 3px 10px 3px 8px; }
+  .hud-top { justify-content: flex-end; padding-right: calc(58px + var(--sr)); }
+  .pill { gap: 5px; padding: 3px 9px 3px 7px; }
+  .pill .dial { width: 22px; height: 22px; }
   .pill .day { font-size: 11px; } .pill .clock, .pill .temp { font-size: 13px; }
   .dial { width: 24px; height: 24px; }
   #debug { font-size: 9px; }
