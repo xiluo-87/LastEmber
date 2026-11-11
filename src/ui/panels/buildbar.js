@@ -1,4 +1,4 @@
-// Placement / dismantle bar: a small non-modal card near the bottom-left while build mode is active.
+// Placement / dismantle bar: a small non-modal card at the top-right while build mode is active.
 // Shows the selected structure (icon, name, cost chips), the live validity reason, Cancel and Menu buttons.
 import { STRUCTURES } from '../../data/structures.js';
 import { structureIcon } from '../../render/sprites/structures.js';
@@ -37,7 +37,7 @@ export default {
           const d = STRUCTURES[B.selected], needs = body.querySelector('.needs');
           const n = JSON.stringify(d.cost.map((c) => count(inv, c.item)));
           if (n !== lastNeeds) { lastNeeds = n; needs.innerHTML = costChips(inv, d.cost); paintCanvases(body); }
-          const g = B.ghost, txt = g.valid ? 'Ready: tap Place or the ghost' : g.reason || '';
+          const g = B.ghost, txt = g.valid ? (B.cursorMode ? 'Ready: arrows move it, tap Place' : 'Ready: press Action or click the ghost') : g.reason || '';
           if (txt !== lastStatus) { lastStatus = txt; status.textContent = txt; status.className = `bb-status ${g.valid ? 'ok' : 'bad'}`; }
         }
       },

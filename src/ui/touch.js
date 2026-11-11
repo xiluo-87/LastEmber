@@ -17,6 +17,12 @@ export function createTouch(game, root, input) {
     <button class="tbtn tbtn-use" data-btn="use" aria-label="Use item"><b>Use</b></button>
     <button class="tbtn tbtn-bag" data-btn="bag" aria-label="Bag"><b>Bag</b></button>
     <button class="tbtn tbtn-build" data-btn="build" aria-label="Build"><b>Build</b></button>
+    <div class="dpad" hidden>
+      <button class="dbtn d-up" data-nudge="0,-1" aria-label="Move tile up"><b>&#9650;</b></button>
+      <button class="dbtn d-left" data-nudge="-1,0" aria-label="Move tile left"><b>&#9664;</b></button>
+      <button class="dbtn d-right" data-nudge="1,0" aria-label="Move tile right"><b>&#9654;</b></button>
+      <button class="dbtn d-down" data-nudge="0,1" aria-label="Move tile down"><b>&#9660;</b></button>
+    </div>
     <button class="tbtn tbtn-action" data-btn="action" aria-label="Action"><b class="act-label">Act</b></button>`;
   const $ = (s) => root.querySelector(s);
   const joy = $('.joy'), base = $('.joy-base'), knob = $('.joy-knob'), actLabel = $('.act-label');
@@ -74,6 +80,25 @@ export function createTouch(game, root, input) {
     const up = (e) => { btn.classList.remove('down'); if (name === 'action') t.action = false; e.preventDefault(); };
     btn.addEventListener('pointerup', up); btn.addEventListener('pointercancel', up); btn.addEventListener('lostpointercapture', up);
   }
+
+  // placement cursor d-pad (build mode only): steps the ghost tile; hold to repeat
+  const dpad = $('.dpad');
+  for (const btn of dpad.querySelectorAll('[data-nudge]')) {
+    const [dx, dy] = btn.dataset.nudge.split(',').map(Number);
+    let timer = 0;
+    const step = () => game.building?.nudge(dx, dy);
+    const end = (e) => { clearTimeout(timer); clearInterval(timer); timer = 0; btn.classList.remove('down'); e?.preventDefault(); };
+    btn.addEventListener('pointerdown', (e) => {
+      e.preventDefault(); e.stopPropagation(); btn.setPointerCapture(e.pointerId); btn.classList.add('down');
+      step(); clearTimeout(timer); timer = setTimeout(() => { timer = setInterval(step, 120); }, 320);
+    });
+    btn.addEventListener('pointerup', end); btn.addEventListener('pointercancel', end); btn.addEventListener('lostpointercapture', end);
+  }
+  game.events.on('build:mode', ({ mode }) => {
+    const placing = mode === 'place';
+    dpad.hidden = !placing; document.body.classList.toggle('build-place', placing);
+    if (game.building) { game.building.cursorMode = true; if (placing) game.building.pinHere(); }
+  });
 
   // block scrolling / pinch-zoom / selection / context menu everywhere,
   // except one-finger scrolling inside a panel's scrollable body

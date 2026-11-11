@@ -220,9 +220,9 @@ body.touch #debug { bottom: calc(200px + var(--sb)); left: calc(6px + var(--sl))
 .btn.dismantle { width: 100%; margin: 4px 0 0; font-size: 15px; min-height: 48px; text-align: left; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; padding: 6px 14px; }
 .btn.dismantle .small { font-weight: 500; }
 .panel.sheet header { padding-bottom: 0; }
-/* placement bar: sits bottom-left, clear of the Action cluster on the right and the hotbar */
-.panel-backdrop.bar { place-items: end start; padding-bottom: calc(118px + var(--sb)); }
-.panel-backdrop.bar .panel { width: min(196px, calc(100vw - 170px)); max-height: none; border-radius: 14px; background: rgba(16,24,32,0.92); }
+/* placement bar: sits top-right under the pause button, clear of both thumbs */
+.panel-backdrop.bar { place-items: start end; padding-top: calc(62px + var(--st)); }
+.panel-backdrop.bar .panel { width: min(172px, calc(100vw - 150px)); max-height: none; border-radius: 14px; background: rgba(16,24,32,0.92); }
 .panel-backdrop.bar header { display: none; }
 .panel-backdrop.bar .panel { pointer-events: none; }   /* the joystick zone must stay usable under the card */
 .panel-backdrop.bar .panel .btn { pointer-events: auto; }
@@ -312,8 +312,20 @@ body.mode-title #debug { display: none; }
   .bgrid { grid-template-columns: repeat(3, 1fr); }
   .bcard { min-height: 74px; }
   .btn { min-height: 44px; padding: 6px 14px; }
-  .panel-backdrop.bar { padding-bottom: calc(10px + var(--sb)); }   /* bottom-left corner: clear of the objective card and the centred hotbar */
 }
 
 /* let a drag that starts on a button inside a panel still scroll the panel */
 .panel-body button, .panel-body .btn, .panel-body .slot { touch-action: pan-y; }
+
+/* placement cursor d-pad: above the Place button for the right thumb; the other round buttons hide while placing */
+.dpad { position: absolute; z-index: 7; right: calc(8px + var(--sr)); bottom: calc(182px + var(--sb)); width: 138px; height: 138px; pointer-events: none; }
+.dbtn { position: absolute; width: 46px; height: 46px; border-radius: 12px; border: 2px solid rgba(244,241,222,0.55); background: rgba(16,24,32,0.7); color: var(--text); display: grid; place-items: center; padding: 0; pointer-events: auto; touch-action: none; }
+.dbtn b { font-size: 16px; pointer-events: none; }
+.dbtn.down { background: rgba(255,159,28,0.75); transform: scale(0.94); }
+.d-up { left: 46px; top: 0; } .d-down { left: 46px; bottom: 0; } .d-left { left: 0; top: 46px; } .d-right { right: 0; top: 46px; }
+body.build-place .tbtn-use, body.build-place .tbtn-bag, body.build-place .tbtn-build { display: none; }
+@media (max-height: 520px) and (orientation: landscape) {
+  .dpad { right: calc(112px + var(--sr)); bottom: calc(6px + var(--sb)); }
+  .panel-backdrop.bar { padding-top: calc(52px + var(--st)); }
+  .panel-backdrop.bar .panel-body { padding: 6px 8px 8px; }
+}

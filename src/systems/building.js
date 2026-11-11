@@ -4,7 +4,7 @@
 // See ARCHITECTURE.md §18 for the API other systems use.
 import { TILE, BUILD, BUILDING } from '../data/balance.js';
 import { ITEMS } from '../data/items.js';
-import { STRUCTURES, objectDef, isStructure } from '../data/structures.js';
+import { STRUCTURES, NODES, objectDef, isStructure } from '../data/structures.js';
 import { validatePlacement, connectMask, NB_BITS } from '../logic/placement.js';
 import { newStructure, applyDamage, repairOnce, refundFor, repairItem } from '../logic/structures.js';
 import { createEnclosure } from '../logic/enclosure.js';
@@ -87,7 +87,7 @@ export default {
   init(game) {
     const world = () => game.world;
     const B = game.building = {
-      mode: null, selected: null, ghost: { tx: 0, ty: 0, valid: false, reason: '', code: '' }, pinned: null,
+      mode: null, selected: null, ghost: { tx: 0, ty: 0, valid: false, reason: '', code: '' }, pinned: null, cursorMode: false, lastDir: null,
       blockers: [], hitT: new Map(), index: new Map(), enc: null, flash: null, loading: false, lastPlace: { tx: -1, ty: -1, at: -9 },
       list(type) { return B.index.get(type) || EMPTY; },
       listAll() { const out = []; for (const s of B.index.values()) for (const o of s) out.push(o); return out; },
@@ -100,7 +100,7 @@ export default {
       },
       select(id) {
         if (!STRUCTURES[id]) return false;
-        B.mode = 'place'; B.selected = id; B.pinned = null; openBar(game); game.ui.panels.close('build');
+        B.mode = 'place'; B.selected = id; B.pinned = null; B.lastDir = null; openBar(game); game.ui.panels.close('build');
         game.events.emit('build:mode', { mode: B.mode, id });
         return true;
       },
@@ -119,12 +119,24 @@ export default {
       /** B / Build button: returns true when it was handled here (cancels build mode); false = let the UI toggle the menu. */
       onToggle() { if (game.ui.panels.isOpen('build')) return false; return B.cancel(); },
       place(tx, ty) { return place(game, tx, ty); },
+      /** Touch placement cursor: pin the ghost where it is now so it stays put while the player walks. */
+      pinHere() { if (B.mode !== 'place' || !B.selected) return false; updateGhost(game); B.pinned = { tx: B.ghost.tx, ty: B.ghost.ty, sticky: true }; return true; },
+      /** Step the placement cursor one tile (d-pad). Stays within build range. */
+      nudge(dx, dy) {
+        if (B.mode !== 'place' || !B.selected) return false;
+        if (!B.pinned) updateGhost(game);
+        const tx = B.ghost.tx + dx, ty = B.ghost.ty + dy;
+        if (!inReach(game, tx, ty, CURSOR_SLACK)) return false;
+        B.pinned = { tx, ty, sticky: true }; B.lastDir = [dx, dy];
+        updateGhost(game);
+        return true;
+      },
     };
     game.targetOverride = targetOverride;
     game.shelterQuery = (tx, ty) => !!B.enc && B.enc.isSheltered(tx, ty);
 
     // --- interactions
-    game.interactions.register('buildghost', { label: () => 'Place', priority: 100, cooldown: 0.16, onAction: (g) => { const gh = B.ghost; return place(g, gh.tx, gh.ty) ? undefined : false; } });
+    game.interactions.register('buildghost', { label: () => 'Place', priority: 100, cooldown: 0.16, onAction: (g) => { const gh = B.ghost; return placeAndAdvance(g, gh.tx, gh.ty) ? undefined : false; } });
     game.interactions.register((t) => t.dismantle === true, {
       priority: 100, label: () => 'Hold: Dismantle', cooldown: 0.1, onAction: () => false,
       onHold(g, t, dt, held) { if (held >= BUILD.dismantleHoldSec) dismantle(g, t.obj); },
@@ -303,11 +315,19 @@ function sealedFireNear(game, tx, ty) {
 // ---- placement
 const dirTile = (facing) => (Math.abs(Math.cos(facing)) >= Math.abs(Math.sin(facing)) ? [Math.cos(facing) >= 0 ? 1 : -1, 0] : [0, Math.sin(facing) >= 0 ? 1 : -1]);
 
+const CURSOR_SLACK = 1.5;
+
 function updateGhost(game) {
   const B = game.building, p = game.state.player, world = game.world, it = game.input.intent;
   let tx, ty;
   if (B.pinned) {
-    if (Math.hypot(p.x - B.pinned.px, p.y - B.pinned.py) > 6) B.pinned = null;   // moving drops the pin: ghost goes back in front
+    if (B.pinned.sticky) {   // placement cursor: stays put while the player walks, but is dragged along at the edge of build range
+      let n = 0;
+      while (!inReach(game, B.pinned.tx, B.pinned.ty, CURSOR_SLACK) && n++ < 64) {
+        const pt = world.worldToTile(p.x, p.y), ex = pt.tx - B.pinned.tx, ey = pt.ty - B.pinned.ty;
+        if (Math.abs(ex) >= Math.abs(ey)) B.pinned.tx += Math.sign(ex); else B.pinned.ty += Math.sign(ey);
+      }
+    } else if (Math.hypot(p.x - B.pinned.px, p.y - B.pinned.py) > 6) B.pinned = null;   // mouse pin: moving drops it, ghost goes back in front
   }
   if (B.pinned) { tx = B.pinned.tx; ty = B.pinned.ty; }
   else if (it.aimActive && !it.uiBlocked) { const t = world.worldToTile(it.pointer.wx, it.pointer.wy); tx = t.tx; ty = t.ty; }
@@ -318,6 +338,33 @@ function updateGhost(game) {
     if (v2.ok) { tx += dx; ty += dy; v = v2; }
   }
   Object.assign(B.ghost, { tx, ty, valid: v.ok, reason: v.reason, code: v.code });
+}
+
+// `slack` lets the cursor sit a little past build range (it then reads "Too far away" until the player walks closer).
+function inReach(game, tx, ty, slack = 0) {
+  const p = game.state.player, c = game.world.tileCenter(tx, ty);
+  return game.world.inBounds(tx, ty) && Math.hypot(c.x - p.x, c.y - p.y) / TILE <= BUILD.placeRange + 0.5 + slack;
+}
+
+/** Place, then (with a sticky cursor) step the cursor on along the line being built so a wall run is one tap per tile. */
+function placeAndAdvance(game, tx, ty) {
+  const B = game.building, prev = B.lastPlace, id = B.selected;
+  if (!place(game, tx, ty)) return false;
+  if (!B.pinned?.sticky) return true;
+  let dir = null;
+  if (Math.abs(tx - prev.tx) + Math.abs(ty - prev.ty) === 1 && game.time - prev.at < 20) dir = [tx - prev.tx, ty - prev.ty];
+  else if (B.lastDir && (B.lastDir[0] || B.lastDir[1])) dir = B.lastDir;
+  if (!dir || !(CONNECTS.has(id) || STRUCTURES[id].spikes)) return true;
+  const occupied = (x, y) => { const o = game.world.objectAt(x, y); return !!o && NODES[o.type]?.kind !== 'decor'; };
+  for (let k = 1; k <= 2; k++) {   // skip one tile if the next is taken (e.g. the door gap you just filled)
+    const nx = tx + dir[0] * k, ny = ty + dir[1] * k;
+    if (!inReach(game, nx, ny, CURSOR_SLACK)) break;
+    if (occupied(nx, ny)) continue;
+    B.pinned = { tx: nx, ty: ny, sticky: true }; B.lastDir = dir;
+    break;
+  }
+  updateGhost(game);
+  return true;
 }
 
 function targetOverride(game, picked) {
@@ -360,9 +407,10 @@ function onWorldTap(game, tap) {
   if (game.input.intent.uiBlocked) return;
   const { tx, ty } = game.world.worldToTile(tap.wx, tap.wy);
   if (tx === B.lastPlace.tx && ty === B.lastPlace.ty && game.time - B.lastPlace.at < 0.6) return;   // mouse: the click that follows the action press
-  if (tx === B.ghost.tx && ty === B.ghost.ty) { place(game, tx, ty); return; }                       // tap the ghost again = confirm
+  if (tx === B.ghost.tx && ty === B.ghost.ty) { placeAndAdvance(game, tx, ty); return; }             // tap the ghost again = confirm
   const p = game.state.player;
-  B.pinned = { tx, ty, px: p.x, py: p.y };
+  B.pinned = B.cursorMode ? { tx, ty, sticky: true } : { tx, ty, px: p.x, py: p.y };
+  B.lastDir = null;
   updateGhost(game);
 }
 
