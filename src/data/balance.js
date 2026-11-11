@@ -125,3 +125,21 @@ export const GATHER = {
   dropSearchRadius: 2,   // tiles around the player searched for a free tile when dropping an item
 };
 export const ITEM_USE = { torchWarnSeconds: 20, eatSnow: { thirst: 8, warmth: -10 } };
+
+// ---- building / structures / sleep (systems/building.js, structures.js, sleep.js) ----
+export const BUILDING = {
+  noticeRadius: 10,                 // tiles: "fire went out" / "destroyed" toasts, low-fuel chip
+  lowFuelSeconds: 30,               // low-fuel warning chip below this (nearest lit fire)
+  stationRadius: { workbench: 2, campfire: 2.5, furnace: 2.5 },   // tiles from the structure centre
+  torchPostFuel: { fat: 150, coal: 300 },                          // seconds of burn per item (max = FIRE.torchPostBurn)
+  roomMinToast: 2,                  // smallest enclosed room that gets the "Shelter complete" feedback
+  roomFlashSeconds: 1.6,
+  doorOpenRadius: 1.35,             // tiles: a door looks open while the player is this close
+  invalidToastGap: 0.9,             // s between identical placement-refusal toasts
+  fuelHold: { delay: 0.4, every: 0.11 },   // fuel panel: hold a button to keep adding
+  hpBarSeconds: 4,                  // damaged-structure hp bar stays up this long after the last hit (always shown below 50%)
+  rackSlots: 3,
+  sleep: { staminaPerSec: 20, healthPerGameSec: 0.15, wakeFeltBelow: 0 },   // stamina per REAL second; health per GAME second (night ~ +27 HP)
+  repairMaterial: { campfire: 'stone', wood_wall: 'wood', stone_wall: 'stone', door: 'wood', workbench: 'wood', chest: 'wood', bedroll: 'hide',
+    furnace: 'stone', drying_rack: 'stick', snare: 'stick', spike_barricade: 'wood', torch_post: 'stick', radio_tower: 'iron_ingot' },
+};

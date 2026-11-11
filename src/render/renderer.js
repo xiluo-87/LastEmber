@@ -12,7 +12,7 @@ import { TERRAIN, TERRAIN_BY_CODE } from '../data/terrain.js';
 import { hash2, fbm } from '../rng.js';
 import './sprites/index.js';
 import { getSprite, drawSprite, getOutline, setSpriteScale } from './sprites.js';
-import { drawObject, spriteKeyFor } from './objects.js';
+import { drawObject, spriteKeyFor, FLAT_OBJECTS } from './objects.js';
 import { createLighting } from './lighting.js';
 
 const PRIO = [0, 1, 3, 2, 4]; // blend priority by terrain code (snow<deep<rock<ice<cliff)
@@ -20,7 +20,8 @@ const SIDE_LIST = [['n', 0, -1], ['s', 0, 1], ['w', -1, 0], ['e', 1, 0]];
 const SHADE = Array.from({ length: 8 }, (_, i) => (i === 0 ? null : `rgba(110,140,185,${(i * 0.006).toFixed(3)})`));
 const OBJ_GROUND_X = TILE / 2, OBJ_GROUND_Y = 27;
 
-export const objectGround = (obj) => ({ x: obj.tx * TILE + OBJ_GROUND_X, y: obj.ty * TILE + OBJ_GROUND_Y });
+// FLAT_OBJECTS (bedroll, snare, fishing hole) sort at the top of their tile so the player is always drawn on top of them.
+export const objectGround = (obj) => ({ x: obj.tx * TILE + OBJ_GROUND_X, y: obj.ty * TILE + (FLAT_OBJECTS.has(obj.type) ? 2 : OBJ_GROUND_Y) });
 
 export function createRenderer(game, canvas) {
   const ctx = canvas.getContext('2d', { alpha: false });

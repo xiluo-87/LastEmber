@@ -5,6 +5,8 @@
 import { drawSprite, hasSprite } from './sprites.js';
 
 const drawers = new Map();
+/** Object types drawn flat on the ground (sorted before the player; their sprites anchor at the tile top, ground y = ty*32+2). */
+export const FLAT_OBJECTS = new Set(['bedroll', 'snare', 'fishing_hole']);
 export const registerObjectDrawer = (type, fn) => drawers.set(type, fn);
 
 export const spriteKeyFor = (obj) => (obj.depleted && hasSprite(`${obj.type}:empty`) ? `${obj.type}:empty` : obj.type);

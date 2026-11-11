@@ -4,4 +4,5 @@ import './nature.js';
 import './pois.js';
 import './player.js';
 import './gathered.js';
+import './structures.js';
 import './creatures.js';

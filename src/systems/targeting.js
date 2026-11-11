@@ -12,7 +12,8 @@ export default {
     const p = game.state.player;
     const cands = objectCandidates(game.world, p.x, p.y, PLAYER.interactCone.range + 1);
     for (const fn of game.targetProviders) { const extra = fn(game, p.x, p.y); if (extra) for (const c of extra) cands.push(c); }
-    const t = pickTarget(cands, p.x, p.y, p.facing);
+    let t = pickTarget(cands, p.x, p.y, p.facing);
+    if (game.targetOverride) t = game.targetOverride(game, t);   // build mode (placement ghost / dismantle) replaces the target
     const prev = game.target;
     game.target = t;
     if ((prev?.obj ?? prev?.ref) !== (t?.obj ?? t?.ref)) game.events.emit('target:changed', t);

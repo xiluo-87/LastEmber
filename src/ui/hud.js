@@ -70,10 +70,16 @@ export function createHud(game, root) {
       const dl = 480 - Math.min(300, 180 + 6 * (t.day - 1)), end = (dl / 480) * Math.PI * 2 - Math.PI / 2;
       const d = `M18 18 L18 3 A15 15 0 ${dl / 480 > 0.5 ? 1 : 0} 1 ${(18 + 15 * Math.cos(end)).toFixed(2)} ${(18 + 15 * Math.sin(end)).toFixed(2)} Z`;
       if (d !== lastDial) { lastDial = d; dialDay.setAttribute('d', d); }
-      const cs = Object.keys(p.status || {}).map((k) => `${k}`).join(',');
+      // building chips: Sheltered (player inside an enclosed room) and low-fuel warning for the nearest lit fire
+      const pt = game.world && game.shelterQuery ? game.world.worldToTile(p.x, p.y) : null;
+      const sheltered = !!(pt && game.shelterQuery(pt.tx, pt.ty));
+      const lf = game.structures?.lowFuel, lowTxt = lf ? `${lf.type === 'torch_post' ? 'Torch' : 'Fire'} low: ${Math.ceil(lf.secs)}s` : '';
+      const extra = (sheltered ? 'S' : '') + (lowTxt ? `L${lowTxt}` : '');
+      const cs = Object.keys(p.status || {}).map((k) => `${k}`).join(',') + '|' + extra;
       if (cs !== lastChips) {
         lastChips = cs;
-        chips.innerHTML = Object.keys(p.status || {}).map((k) => { const d = STATUS_DEFS[k] || { label: k, color: '#ccc' }; return `<span class="chip" style="--c:${d.color}">${d.label}</span>`; }).join('');
+        chips.innerHTML = (sheltered ? '<span class="chip" style="--c:#ffbf69">Sheltered</span>' : '') + (lowTxt ? `<span class="chip pulse" style="--c:#ff6b6b">${lowTxt}</span>` : '')
+          + Object.keys(p.status || {}).map((k) => { const d = STATUS_DEFS[k] || { label: k, color: '#ccc' }; return `<span class="chip" style="--c:${d.color}">${d.label}</span>`; }).join('');
       }
       const tg = game.target, h = tg ? `${tg.verb || 'Use'} · ${tg.name}` : '';
       if (h !== lastHint) { lastHint = h; hint.hidden = !h; hint.textContent = h; }

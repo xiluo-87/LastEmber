@@ -35,6 +35,7 @@ export function createUI(game, { hud: hudRoot, panels: panelsRoot, title: titleR
   game.events.on('input:toggleBag', () => { if (game.mode === 'playing' && !game.paused) panels.toggle('bag'); });
   game.events.on('input:toggleBuild', () => {
     if (game.mode !== 'playing' || game.paused) return;
+    if (game.building?.onToggle?.()) return;   // placing / dismantling: Build button cancels
     panels.toggle('build'); game.events.emit('build:toggle', { open: panels.isOpen('build') });
   });
   game.events.on('input:escape', () => {

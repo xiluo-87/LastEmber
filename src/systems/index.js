@@ -22,6 +22,9 @@ import weather from './weather.js';
 import survival from './survival.js';
 import creatures from './creatures.js';
 import combat from './combat.js';
+import building from './building.js';
+import structures from './structures.js';
+import sleep from './sleep.js';
 
 export const SYSTEMS = [
   time,
@@ -35,5 +38,8 @@ export const SYSTEMS = [
   survival,
   creatures,  // wildlife AI, spawning, carcasses (after survival: uses damagePlayer)
   combat,     // player:swing -> creatures, bow/arrows, butchering
+  building,   // build mode, placement, rooms/shelter, structure hp (game.building)
+  structures, // fires, racks, snares, fishing, workbench/chest handlers (game.structures)
+  sleep,      // bedroll sleeping (game.sleep)
   // append new systems below (one line each), e.g.:  weather, survival, gather, crafting, building, structures, creatures, combat, endgame, tutorial
 ];
