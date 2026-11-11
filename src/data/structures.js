@@ -54,7 +54,7 @@ export const NODES = {
   dead_bush: { id: 'dead_bush', name: 'Dead bush', kind: 'node', blocks: true, interactable: true, verb: 'Gather', variants: 3,
     gather: { hp: 12, drops: [{ item: 'stick', n: [1, 2] }, { item: 'fiber', n: [1, 2] }] } },
   rock_node: { id: 'rock_node', name: 'Boulder', kind: 'node', blocks: true, interactable: true, verb: 'Mine', variants: 3,
-    gather: { tool: 'pickaxe', hp: 90, drops: [{ item: 'stone', n: [2, 4] }, { item: 'flint', n: [1, 1], chance: 0.35 }], handDrops: [{ item: 'stone', n: [1, 1] }], handHp: 30, becomes: 'rubble' } },
+    gather: { tool: 'pickaxe', hp: 90, drops: [{ item: 'stone', n: [2, 4] }, { item: 'flint', n: [1, 1], chance: 0.6 }], handDrops: [{ item: 'stone', n: [1, 1] }], handHp: 30, becomes: 'rubble' } },
   iron_node: { id: 'iron_node', name: 'Iron vein', kind: 'node', blocks: true, interactable: true, verb: 'Mine', variants: 2,
     gather: { tool: 'pickaxe', hp: 110, drops: [{ item: 'iron_ore', n: [2, 3] }], becomes: 'rubble' } },
   coal_node: { id: 'coal_node', name: 'Coal seam', kind: 'node', blocks: true, interactable: true, verb: 'Mine', variants: 2,

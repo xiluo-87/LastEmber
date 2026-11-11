@@ -171,13 +171,14 @@ for (const view of views) {
   }
 
   // --- walls + door: 4x3 ring around the fire and the tile east of it (materials via debug.give)
-  await g(() => { __game.debug.give('wood', 20); __game.debug.give('wood', 20); __game.debug.give('rope', 2); });
+  await g(() => { __game.debug.give('wood', 20); __game.debug.give('wood', 20); __game.debug.give('wood', 20); __game.debug.give('rope', 2); });
   const ring = [];
-  for (let x = fire.tx - 1; x <= fire.tx + 2; x++) for (let y = fire.ty - 1; y <= fire.ty + 1; y++) {
-    if (y === fire.ty && (x === fire.tx || x === fire.tx + 1)) continue;
+  // interior = the fire + two free tiles to its east (a ring of only 8 walls around the fire leaves no room to stand in)
+  for (let x = fire.tx - 1; x <= fire.tx + 3; x++) for (let y = fire.ty - 1; y <= fire.ty + 1; y++) {
+    if (y === fire.ty && x >= fire.tx && x <= fire.tx + 2) continue;
     ring.push([x, y]);
   }
-  const doorT = [fire.tx + 1, fire.ty + 1];
+  const doorT = [fire.tx + 2, fire.ty + 1];
   async function placeAt(type, tx, ty) {
     await g((t) => __game.building.select(t), type);
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -202,23 +203,29 @@ for (const view of views) {
   if (!(await placeAt('door', doorT[0], doorT[1]))) { placedAll = false; console.log('   door failed', await g(() => __game.building.ghost.reason)); }
   await g(() => __game.building.cancel());
   check(placedAll, `${view}: all walls and the door placed by tapping`);
-  await P.goTo(fc.x + 16, fc.y + 100, 20, 10000);
-  await P.goTo(doorT[0] * 32 + 16, doorT[1] * 32 + 16, 14, 9000);
-  await P.goTo(fc.x + 32, fc.y, 16, 6000);   // through the door into the room
+  await P.goTo(doorT[0] * 32 + 16, doorT[1] * 32 + 16 + 90, 20, 12000);
+  await P.goTo(doorT[0] * 32 + 16, doorT[1] * 32 + 16, 12, 6000);
+  await P.goTo(doorT[0] * 32 + 16, fire.ty * 32 + 16, 12, 6000);   // through the door into the room
   await sleep(700);
   await snap('inside-room');
-  const room = await g(([x, y]) => ({ sheltered: !!__game.shelterQuery(x, y), t: [...document.querySelectorAll('.chip')].map((c) => c.textContent) }), [fire.tx + 1, fire.ty]);
+  const room = await g(([x, y]) => ({ sheltered: !!__game.shelterQuery(x, y), t: [...document.querySelectorAll('.chip')].map((c) => c.textContent) }), [fire.tx + 2, fire.ty]);
   check(room.sheltered, `${view}: room formed / sheltered (${room.t.join(',')})`);
   check(!/Wall in/i.test(await objective()), `${view}: shelter objective ticked (${await objective()})`);
 
-  // --- cook / boil water at the lit fire, drink
-  await g(() => __game.debug.give('snow_water', 0));
+  // --- the fire burned out while we built: refuel + relight from inside the room, then Cook / Craft from the fuel panel
   await g(() => { __game.debug.give('raw_meat', 1); });
-  await hit(); 
-  await click(P.touchy ? '.tbtn-bag' : null).catch?.(() => {});
-  if (!P.touchy) await P.page.keyboard.press('i');
+  await P.goTo(fc.x + 32, fc.y, 8, 6000);
+  await P.faceTo(fc.x, fc.y);
+  await sleep(200);
+  await hit();
+  await P.page.waitForSelector('.panel-fuel .fitem', { timeout: 4000 }).catch(() => {});
+  await snap('refuel');
+  for (let i = 0; i < 3; i++) await click('.fitem[data-id="wood"]');
+  if (await P.page.$('.panel-fuel .flight:not([hidden])')) await click('.panel-fuel .flight');
+  await sleep(300);
+  check(await g(([x, y]) => !!__game.world.objectAt(x, y)?.lit, [fire.tx, fire.ty]), `${view}: fire relit from the fuel panel`);
+  await click('.panel-fuel [data-a="cook"]');
   await P.page.waitForSelector('.panel-bag').catch(() => {});
-  if (!(await P.page.$('.panel-bag'))) { await P.page.keyboard.press('Escape'); await click(P.touchy ? '.tbtn-bag' : null).catch?.(() => {}); }
   await click('.panel-bag .tab[data-tab="craft"]');
   await sleep(300);
   await snap('craft-at-fire');

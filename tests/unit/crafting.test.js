@@ -46,10 +46,10 @@ test('crafting: OR-recipes (torch fat | fiber+coal, bandage cloth | fiber+herb) 
   assert.notEqual(recipeLabel(recipeById('torch_fat')), recipeLabel(recipeById('torch_coal')));
 });
 
-test('crafting: arrow makes 4; unique tool (tin_pot) required but NOT consumed', () => {
+test('crafting: arrow makes 6; unique tool (tin_pot) required but NOT consumed', () => {
   const i = inv({ stick: 1, flint: 1 });
-  assert.equal(craft(recipeById('arrow'), i, ['workbench']).produced.n, 4);
-  assert.equal(count(i, 'arrow'), 4);
+  assert.equal(craft(recipeById('arrow'), i, ['workbench']).produced.n, 6);
+  assert.equal(count(i, 'arrow'), 6);
   const j = inv({ snow_water: 1, tin_pot: 1 });
   assert.ok(canCraft(recipeById('clean_water'), j, ['campfire']));
   assert.ok(!canCraft(recipeById('clean_water'), inv({ snow_water: 1 }), ['campfire']), 'needs the pot');

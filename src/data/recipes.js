@@ -23,7 +23,7 @@ export const RECIPES = [
 
   // workbench
   r('bow', 'bow', 1, [['stick', 3], ['rope', 2]], 'workbench'),
-  r('arrow', 'arrow', 4, [['stick', 1], ['flint', 1]], 'workbench'),
+  r('arrow', 'arrow', 6, [['stick', 1], ['flint', 1]], 'workbench'),
   r('fur_hat', 'fur_hat', 1, [['hide', 2], ['rope', 1]], 'workbench'),
   r('fur_coat', 'fur_coat', 1, [['hide', 5], ['rope', 2]], 'workbench'),
   r('fur_boots', 'fur_boots', 1, [['hide', 3], ['rope', 1]], 'workbench'),

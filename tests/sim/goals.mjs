@@ -228,7 +228,10 @@ export function createGoals(bot) {
 
   rule('vitals', () => {
     const p = P();
-    if (p.status?.bleeding && has('bandage')) { core.use('bandage'); return true; }
+    if (p.status?.bleeding) {
+      if (has('bandage')) { core.use('bandage'); return true; }
+      for (const r of ['bandage_cloth', 'bandage_hide', 'bandage_herb']) if (core.canCraft(r)) { core.craft(r); return true; }
+    }
     if (p.thirst < prof.drinkBelow || (bot.mem.drinking && p.thirst < 88)) {
       bot.mem.drinking = true;
       for (const d of DRINKS) if (has(d) && (d !== 'snow_water' || !has('clean_water'))) { core.use(d); return true; }
