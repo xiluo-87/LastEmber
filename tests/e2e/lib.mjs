@@ -109,6 +109,33 @@ export async function open(browser, view, url, { newGame = true, init } = {}) {
     await sleep(80);
     return ok;
   };
+  /** BFS over free tiles (world.isBlocked) from the player to the tile of (wx,wy); waypoint list in world px (every tile centre, thinned). */
+  P.route = (wx, wy) => page.evaluate(([wx, wy]) => {
+    const g = __game, w = g.world, p = g.state.player, s = w.worldToTile(p.x, p.y), t = w.worldToTile(wx, wy);
+    const key = (x, y) => y * 4096 + x, prev = new Map([[key(s.tx, s.ty), null]]), q = [[s.tx, s.ty]];
+    const free = (x, y) => w.inBounds(x, y) && !w.isBlocked(x, y);
+    // a tile is walkable for the player body only if its 4 neighbours are not both-sided blocked diagonals: keep it simple, forbid diagonal corner cutting
+    for (let i = 0; i < q.length && i < 40000; i++) {
+      const [x, y] = q[i];
+      if (x === t.tx && y === t.ty) break;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+        const nx = x + dx, ny = y + dy, k = key(nx, ny);
+        if (prev.has(k) || (nx !== t.tx || ny !== t.ty ? !free(nx, ny) : false)) continue;
+        if (dx && dy && (!free(x + dx, y) || !free(x, y + dy))) continue;
+        prev.set(k, [x, y]); q.push([nx, ny]);
+      }
+    }
+    const k0 = key(t.tx, t.ty); if (!prev.has(k0)) return null;
+    const path = []; for (let c = [t.tx, t.ty]; c; c = prev.get(key(c[0], c[1]))) path.push(c);
+    path.reverse();
+    return path.filter((_, i) => i % 2 === 1 || i === path.length - 1).map(([x, y]) => [x * 32 + 16, y * 32 + 16]);
+  }, [wx, wy]);
+  /** Walk along a BFS route to (wx,wy) with the real joystick / keys. */
+  P.navTo = async (wx, wy, stop = 14, perLeg = 3500) => {
+    const r = await P.route(wx, wy); if (!r) return false;
+    for (const [x, y] of r) if (!(await P.goTo(x, y, 10, perLeg))) { const p = await P.state(() => ({ x: __game.state.player.x, y: __game.state.player.y })); if (Math.hypot(p.x - x, p.y - y) > 26) return false; }
+    return Math.hypot(...(await P.state(() => [__game.state.player.x, __game.state.player.y])).map((v, i) => v - [wx, wy][i])) <= stop + 10;
+  };
   /** Face a world point by nudging towards it (small step) — real movement sets facing. */
   P.faceTo = async (wx, wy) => { await P.goTo(wx, wy, 6, 600); };
   /** Hold the Action control (touch button / mouse button / Space) for ms. */

@@ -195,6 +195,7 @@ export default {
         if (room(tx - 1, ty - 1)) q.push([X, Y, H, H]); if (room(tx + 1, ty - 1)) q.push([X + h, Y, H, H]);
         if (room(tx - 1, ty + 1)) q.push([X, Y + h, H, H]); if (room(tx + 1, ty + 1)) q.push([X + h, Y + h, H, H]);
         if (!q.length) continue;
+        if (!CONNECTS.has(o.type) && (W || E || N || S)) { q.length = 0; q.push([X, Y, TILE, TILE]); }   // fire, chest, bedroll...: floor under the whole tile
         ctx.save(); ctx.beginPath(); for (const r of q) ctx.rect(...r); ctx.clip();
         ctx.drawImage(getSprite('room_floor', (tx * 7 + ty * 13) % 3).canvas, X, Y, TILE + eps, TILE + eps);
         ctx.restore(); continue;

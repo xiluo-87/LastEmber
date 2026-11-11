@@ -25,7 +25,7 @@ body.touch.mode-playing #touch-layer { display: block; }
 .joy.sprint .joy-knob { background: rgba(255,159,28,0.8); }
 .joy.sprint .joy-base { border-color: rgba(255,159,28,0.9); }
 .tbtn { position: absolute; z-index: 7; pointer-events: auto; border-radius: 50%; border: 2px solid rgba(244,241,222,0.55); background: rgba(16,24,32,0.62);
-  color: var(--text); display: grid; place-items: center; padding: 0; backdrop-filter: blur(2px); }
+  color: var(--text); display: grid; place-items: center; padding: 0; }   /* no backdrop-filter: it re-blurs the animated canvas every frame */
 .tbtn b { font-weight: 700; font-size: 13px; letter-spacing: 0.02em; pointer-events: none; }
 .tbtn.down { background: rgba(255,159,28,0.75); transform: scale(0.94); }
 .tbtn-action { width: 88px; height: 88px; right: calc(16px + var(--sr)); bottom: calc(86px + var(--sb)); border-color: var(--fire); background: rgba(120,60,10,0.55); }

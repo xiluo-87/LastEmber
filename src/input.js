@@ -94,6 +94,9 @@ export function createInput(game) {
   const typing = (e) => /^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName || '');
   window.addEventListener('keydown', (e) => {
     if (typing(e) || e.ctrlKey || e.metaKey || e.altKey) return;
+    // Space / Enter on a focused DOM button (HUD, closed panel...) would click it again while playing: drop focus first.
+    const fo = document.activeElement;
+    if (fo && fo !== document.body && /^(BUTTON|A)$/.test(fo.tagName) && !game.ui?.panels?.modalOpen?.()) fo.blur();
     const dir = KEYMAP[e.code];
     if (dir) { keys.add(dir); e.preventDefault(); return; }
     if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') { keys.add('sprint'); return; }
@@ -110,7 +113,7 @@ export function createInput(game) {
     const dir = KEYMAP[e.code];
     if (dir) keys.delete(dir);
     else if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.delete('sprint');
-    else if (e.code === 'Space') keys.delete('action');
+    else if (e.code === 'Space') { keys.delete('action'); if (!game.ui?.panels?.modalOpen?.()) e.preventDefault(); }
   });
   window.addEventListener('blur', () => input.releaseAll());
 
