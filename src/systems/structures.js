@@ -116,7 +116,7 @@ export default {
       const f = litFires(game);
       for (const o of game.building.list('snare')) {
         const near = f.some((x) => Math.hypot(x.tx - o.tx, x.ty - o.ty) < STRUCTURES.snare.minFireDist);
-        if (snareRoll(o, near, Math.random())) {
+        if (snareRoll(o, near, game.rand())) {
           game.events.emit('snare:caught', { tx: o.tx, ty: o.ty });
           if (nearPlayer(game, o.tx, o.ty, 14)) game.ui.toast?.('Something is caught in your snare', 'good', 2800);
         }
@@ -193,7 +193,7 @@ function startCast(game, obj) {
   return true;
 }
 function resolveCast(game, hole) {
-  const r = fishingRoll(Math.random());
+  const r = fishingRoll(game.rand());
   if (r === 'fish') {
     giveOrDrop(game, 'raw_fish', 1); game.ui.toast?.('You caught a fish!', 'good', 2200);
     const c = game.world.tileCenter(hole.tx, hole.ty); if (game.gatherFx) floatText(game, c.x, c.y - 8, '+1 raw fish', '#bfe6ff');

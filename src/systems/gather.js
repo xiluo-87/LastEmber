@@ -45,7 +45,7 @@ function depleteNode(game, obj, def) {
   if (g.regrowDays) {
     obj.depleted = true;
     game.state.gather.regrow.push({ tx, ty, at: absTime(game.state) + g.regrowDays * TIME.dayLength });
-  } else if (g.becomes) game.world.setObject(tx, ty, { type: g.becomes, variant: Math.floor(Math.random() * (NODES[g.becomes].variants || 1)) });
+  } else if (g.becomes) game.world.setObject(tx, ty, { type: g.becomes, variant: Math.floor(game.rand() * (NODES[g.becomes].variants || 1)) });
   else game.world.removeObject(tx, ty);
 }
 
@@ -54,7 +54,7 @@ function hitNode(game, target) {
   const obj = game.world.objectAt(target.tx, target.ty);
   if (!obj || obj.depleted) return;
   const def = NODES[obj.type], tool = inv.selectedStack(game.state.inventory);
-  const res = applyHit(obj, def, tool, { canFit: (d) => dropsFit(game.state.inventory, d) });
+  const res = applyHit(obj, def, tool, { rand: game.rand, canFit: (d) => dropsFit(game.state.inventory, d) });
   const cx = target.x, cy = target.y;
   if (!res.ok) {
     if (res.reason === 'full') game.ui.toast?.('Bag full', 'bad');

@@ -217,7 +217,7 @@ test('items: eat berries, bandage cures bleeding, clothing equips, raw meat can 
   inv.hotbar[0] = makeStack('fur_coat'); g.press('use');
   assert.equal(inv.clothing[1].id, 'fur_coat'); assert.equal(inv.hotbar[0].id, 'worn_jacket', 'old piece swapped into the slot');
   inv.hotbar[0] = makeStack('raw_meat', 20); p.hunger = 10;
-  const orig = Math.random; Math.random = () => 0.1; g.press('use'); Math.random = orig;
+  const orig = g.rand; g.rand = () => 0.1; g.press('use'); g.rand = orig;
   assert.ok(p.status.food_poisoning, 'raw meat poisons on a low roll');
   inv.hotbar[0] = makeStack('herbal_tea', 2); p.thirst = 20; g.press('use');
   assert.ok(!p.status.food_poisoning, 'tea cures sickness');

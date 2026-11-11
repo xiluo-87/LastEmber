@@ -14,6 +14,7 @@
 import { TILE, PLAYER, WOLF, SPAWN, COMBAT } from '../data/balance.js';
 import { CREATURES, AI, NEW_PACK_TOAST } from '../data/creatures.js';
 import { createRng } from '../rng.js';
+import { nextRand } from '../logic/grand.js';
 import { moveCircle } from '../logic/collision.js';
 import { createPather, lineClear } from '../logic/aipath.js';
 import * as A from '../logic/ai.js';
@@ -25,7 +26,8 @@ import { pushCreatureDrawables, drawCreatureScreen } from '../render/creatures.j
 const TAU = Math.PI * 2;
 const W = AI.wolf, B = AI.bear;
 const S = (game) => game.state.creatures;
-const rand = Math.random;
+let G = null;                                  // the game whose state owns the seeded gameplay RNG (set on init/load/update)
+const rand = () => nextRand(G.state);
 const range = (a, b) => a + rand() * (b - a);
 const HUNT = 'hunt';
 
@@ -687,6 +689,7 @@ export default {
   name: 'creatures',
   defaults: () => ({ list: [], packs: {}, carcasses: [], arrows: [], dens: [], clock: 0, nextId: 1, nextPack: 1, seeded: false, howled: false, packDay: 0, packsTonight: 0, packClock: 0, spawnT: 1 }),
   init(game) {
+    G = game;
     game.creatureRt = null;
     game.creatures = { spawnCreature, spawnPack, hostilesNear, hasHostileNear, creaturesNear, hurtCreature, killCreature, carcassNear, debugSpawn, // all take `game` first
       get list() { return game.state.creatures.list; } };
@@ -697,6 +700,7 @@ export default {
     });
   },
   onLoad(game) {
+    G = game;
     game.creatureRt = makeRuntime(game);
     const s = S(game);
     s.arrows = s.arrows || []; s.carcasses = s.carcasses || [];
@@ -707,6 +711,7 @@ export default {
   },
   update(game, dt) {
     if (game.mode !== 'playing') return;
+    G = game;
     const s = S(game), r = rt(game), p = game.state.player, tm = game.state.time;
     if (!r.registered && game.building && Array.isArray(game.building.blockers)) {
       r.registered = true;

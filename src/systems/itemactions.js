@@ -41,7 +41,7 @@ export function useStack(game, r) {
   const msgs = [];
   for (const [stat, n] of Object.entries(plan.restore)) { restoreStat(game, stat, n); msgs.push(`+${n} ${STAT_NAME[stat]}`); }
   if (plan.cures && hasEffect(game, plan.cures)) { clearEffect(game, plan.cures); msgs.push(plan.cures === 'bleeding' ? 'bleeding stopped' : 'sickness cured'); }
-  if (plan.poison && Math.random() < plan.poison) applyEffect(game, 'poison'); // survival shows its own toast/chip
+  if (plan.poison && game.rand() < plan.poison) applyEffect(game, 'poison'); // survival shows its own toast/chip
   inv.removeAt(st, r, 1);
   toast(game, msgs.join(', ') || `Used ${def.name}`, 'good');
   game.events.emit('item:used', { id: s.id });

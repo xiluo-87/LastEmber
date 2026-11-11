@@ -68,7 +68,7 @@ export function clearEffect(game, id) {
   const st = game.state.player.status; if (!st[id]) return false;
   delete st[id]; game.events.emit('effect:cleared', { id }); return true;
 }
-export function rollEffect(game, id, chance) { if (Math.random() < chance) { applyEffect(game, id); return true; } return false; }
+export function rollEffect(game, id, chance) { if (game.rand() < chance) { applyEffect(game, id); return true; } return false; }
 
 export function restoreStat(game, stat, n) {
   const p = game.state.player, before = p[stat], max = stat === 'health' ? S.max : S.max;

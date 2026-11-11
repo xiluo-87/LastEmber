@@ -90,7 +90,7 @@ function shoot(game, info) {
 }
 
 function recoverArrow(game, x, y) {
-  if (Math.random() >= PROJECTILE.recoverChance) return;
+  if (game.rand() >= PROJECTILE.recoverChance) return;
   const w = game.world, tx0 = Math.floor(x / TILE), ty0 = Math.floor(y / TILE);
   for (let r = 0; r <= 1; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
     const tx = tx0 + dx, ty = ty0 + dy;
@@ -145,7 +145,7 @@ function dropToWorld(game, id, n, x, y) {
 }
 
 export function butcher(game, k) {
-  const s = S(game), def = CREATURES[k.type], drops = A.rollDrops(def);
+  const s = S(game), def = CREATURES[k.type], drops = A.rollDrops(def, game.rand);
   const given = []; let leftAny = false;
   for (const d of drops) {
     const left = invMod.add(game.state.inventory, d.item, d.n);

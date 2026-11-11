@@ -8,6 +8,7 @@ import { createIntent } from './input.js';
 import { SYSTEMS } from './systems/index.js';
 import * as saves from './save.js';
 import { randomSeed } from './rng.js';
+import { nextRand } from './logic/grand.js';
 
 const nullUi = () => ({
   toast() {}, setBanner() {}, setObjective() {}, setActionLabel() {},
@@ -29,6 +30,7 @@ export function createGame(opts = {}) {
     renderer: null, view: null, camera: null,
     speedModifiers: [], targetProviders: [], lightProviders: [], target: null,
     debug: null,
+    rand: () => nextRand(game.state),   // seeded gameplay RNG stream (state.rngA); never use Math.random in gameplay
 
     get running() { return !!this.state && this.mode === 'playing' && !this.paused && !this.hidden; },
 

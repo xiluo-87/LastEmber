@@ -166,13 +166,13 @@ test('system: drying rack timer runs on game seconds and the rack interaction lo
 test('system: snare catches at dawn only far from fire; collect gives meat + hide', () => {
   const { g, cx, cy } = field();
   put(g, 'snare', cx + 2, cy); const sn = g.world.objectAt(cx + 2, cy);
-  const orig = Math.random; Math.random = () => 0.1;
-  try { g.events.emit('time:newDay', { day: 2 }); } finally { Math.random = orig; }
+  const orig = g.rand; g.rand = () => 0.1;
+  try { g.events.emit('time:newDay', { day: 2 }); } finally { g.rand = orig; }
   assert.ok(sn.caught, 'no fire nearby -> caught');
   const meat = count(g.state.inventory, 'raw_meat'); act(g, sn);
   assert.equal(count(g.state.inventory, 'raw_meat'), meat + 1); assert.equal(sn.caught, false);
   put(g, 'campfire', cx + 3, cy); const f = g.world.objectAt(cx + 3, cy); g.structures.addFuel(f, 'wood'); g.structures.light(f);
-  Math.random = () => 0.1; try { g.events.emit('time:newDay', { day: 3 }); } finally { Math.random = orig; }
+  g.rand = () => 0.1; try { g.events.emit('time:newDay', { day: 3 }); } finally { g.rand = orig; }
   assert.equal(sn.caught, false, 'lit fire within 6 tiles -> nothing');
 });
 
