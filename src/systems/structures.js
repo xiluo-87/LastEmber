@@ -164,7 +164,7 @@ export default {
       for (const o of B.list(type)) {
         if (!o.lit) continue;
         const f = type === 'torch_post' ? 0.6 + 0.4 * Math.min(1, o.fuel / 40) : 1;      // a dying torch post shrinks a little
-        push({ x: o.tx * TILE + 16, y: o.ty * TILE + (type === 'torch_post' ? -2 : 18), radius: def.light.radius * f, flicker: def.light.flicker, color: type === 'furnace' ? '255,140,60' : '255,160,70' });
+        push({ x: o.tx * TILE + 16, y: o.ty * TILE + (type === 'torch_post' ? -2 : 18), radius: def.light.radius * f, flicker: def.light.flicker, color: type === 'furnace' ? '255,130,50' : '255,150,55', glowIntensity: type === 'torch_post' ? 2.2 : 3.2, warm: type === 'torch_post' ? 0.7 : 1 });
       }
     }
   },

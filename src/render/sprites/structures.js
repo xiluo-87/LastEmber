@@ -357,11 +357,17 @@ export function structureIcon(id) {
   const ctx = c.getContext('2d');
   const key = id === 'radio_tower' ? 'radio_tower' : id;
   const s = getSprite(key, STRUCTURE_ICON_VARIANT[id] ?? 0);
-  // trim: use the sprite's full box, scaled to fit with 4px margin
-  const k = Math.min(56 / s.w, 56 / s.h) * (id.endsWith('wall') || id === 'door' ? 1.55 : 1.0);
-  const w = s.w * k, h = s.h * k;
+  // trim to the painted pixels (alpha bounding box) and fit into the square with a small margin
+  const src = s.canvas, sw = src.width, sh = src.height;
+  let x0 = sw, y0 = sh, x1 = 0, y1 = 0;
+  try {
+    const d = src.getContext('2d').getImageData(0, 0, sw, sh).data;
+    for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) if (d[(y * sw + x) * 4 + 3] > 24) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  } catch { x0 = 0; y0 = 0; x1 = sw - 1; y1 = sh - 1; }
+  if (x1 <= x0 || y1 <= y0) { x0 = 0; y0 = 0; x1 = sw - 1; y1 = sh - 1; }
+  const bw = x1 - x0 + 1, bh = y1 - y0 + 1, k = Math.min(56 / bw, 56 / bh), w = bw * k, h = bh * k;
   ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(s.canvas, (64 - w) / 2, (64 - h) / 2 + (id.endsWith('wall') || id === 'door' ? 4 : 0), w, h);
+  ctx.drawImage(src, x0, y0, bw, bh, (64 - w) / 2, (64 - h) / 2, w, h);
   iconCache.set(id, c);
   return c;
 }

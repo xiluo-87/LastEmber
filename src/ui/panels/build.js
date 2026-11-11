@@ -30,7 +30,7 @@ export default {
       return `<button class="bcard" type="button" data-id="${id}"><canvas class="bicon" width="96" height="96" data-sti="${id}"></canvas>
         <span class="bmain"><b>${esc(d.name)}</b><span class="needs">${costChips(inv, d.cost)}</span><span class="blurb">${esc(BLURB[id] || '')}</span></span></button>`;
     };
-    body.innerHTML = `<button class="btn dismantle" type="button" data-a="dismantle">Dismantle mode <span class="small muted">hold Action on a structure, 50% back</span></button>
+    body.innerHTML = `<button class="btn dismantle" type="button" data-a="dismantle">Dismantle mode<span class="small muted">Hold Action on a structure. 50% back.</span></button>
       ${BUILD_MENU.map((g) => `<div class="grp">${g.group}</div><div class="bgrid">${g.items.map(card).join('')}</div>`).join('')}`;
     paintCanvases(body);
     const sheet = body.closest('.panel'); sheet?.classList.add('sheet');

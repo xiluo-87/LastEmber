@@ -56,6 +56,18 @@ export function createLighting() {
         g.addColorStop(0, `rgba(${c},${a})`); g.addColorStop(1, `rgba(${c},0)`);
         ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
       }
+      // warm multiply tint: lights with `warm` (campfire, furnace, torch post) turn the lit snow orange instead of white
+      ctx.globalCompositeOperation = 'multiply';
+      for (const l of lights) {
+        if (!l.warm) continue;
+        const x = (l.x - cam.x) * s * view.dpr, y = (l.y - cam.y) * s * view.dpr;
+        const r = l.radius * 32 * s * view.dpr * flicker(l, time);
+        if (x + r < 0 || y + r < 0 || x - r > view.w * view.dpr || y - r > view.h * view.dpr) continue;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r), k2 = Math.min(1, darkness * 1.4) * l.warm;
+        const mix = (v) => Math.round(255 - (255 - v) * k2);
+        g.addColorStop(0, `rgb(${mix(255)},${mix(190)},${mix(120)})`); g.addColorStop(0.55, `rgb(${mix(255)},${mix(205)},${mix(150)})`); g.addColorStop(1, 'rgb(255,255,255)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+      }
       ctx.globalCompositeOperation = 'source-over';
     },
   };

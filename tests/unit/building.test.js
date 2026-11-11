@@ -232,14 +232,16 @@ test('sleep: warm night -> sleeping effect, time x12, wakes at dawn; damage wake
   g.state.time.t = 320; g.weather.force('clear', 6000); g.step(5);
   P.hunger = 90; P.thirst = 90;
   const bed = g.world.objectAt(cx, cy + 1);
+  const wake = []; g.events.on('sleep:end', (e) => wake.push(e.reason));
   assert.equal(g.sleep.refusal(), null);
+  if (g.creatures) g.creatures.hasHostileNear = () => false;      // wolves roaming at night would wake us: keep the test deterministic
   assert.ok(g.sleep.start(bed)); assert.equal(g.state.time.speed, 12); assert.ok(g.state.player.status.sleeping);
   g.step(60 * 5);
   assert.ok(g.state.time.t > 320 + 50, `time advanced x12 (t=${g.state.time.t})`);
   g.sleep.wake('manual'); assert.equal(g.state.time.speed, 1);
   assert.ok(g.sleep.start(bed)); g.events.emit('player:damaged', { amount: 5 }); assert.equal(g.sleep.active, false);
   // sleeping to dawn: ends by itself
-  assert.ok(g.sleep.start(bed)); g.step(60 * 60); assert.equal(g.sleep.active, false); assert.equal(g.state.time.phase !== 'night', true);
+  assert.ok(g.sleep.start(bed)); g.step(60 * 60); assert.equal(g.sleep.active, false); assert.equal(wake.at(-1), 'dawn'); assert.equal(g.state.time.phase !== 'night', true);
 });
 
 test('save round-trip keeps a built base (fuel, hp, chest, rack, snare, door, rooms)', () => {
