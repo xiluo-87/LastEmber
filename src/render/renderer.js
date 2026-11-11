@@ -32,8 +32,26 @@ export function createRenderer(game, canvas) {
   const drawables = [], lights = [];
   let tileSprites = null;
 
+  // Adaptive resolution: when frames stay slow the drawing buffer drops a step (the CSS size does not change), and it climbs back
+  // only after a long stretch of fast frames. ?quality=0|1|2 pins a step (tests, screenshots).
+  const QUALITY = [1, 0.75, 0.5];
+  const gov = { q: Math.min(2, Math.max(0, Number(game.params?.quality ?? 0) | 0)), pinned: game.params?.quality != null, ema: 16.7, slow: 0, fast: 0, since: 0, lockUp: 0 };
+  function governor(dt) {
+    if (gov.pinned || !game.running) return;
+    gov.ema += (Math.min(dt, 0.25) * 1000 - gov.ema) * 0.08;
+    gov.since += dt;
+    if (gov.ema > 24) { gov.slow += dt; gov.fast = 0; } else if (gov.ema < 13.5) { gov.fast += dt; gov.slow = 0; } else { gov.slow = gov.fast = 0; }
+    if (gov.slow > 1.5 && gov.q < QUALITY.length - 1) {
+      if (gov.since < 25) gov.lockUp = 180;             // we just climbed and it was too much: stay down for a while
+      gov.q++; gov.slow = 0; gov.since = 0; gov.ema = 16.7; resize();
+    } else if (gov.fast > 10 && gov.q > 0 && gov.lockUp <= 0) {
+      gov.q--; gov.fast = 0; gov.since = 0; gov.ema = 16.7; resize();
+    }
+    if (gov.lockUp > 0) gov.lockUp -= dt;
+  }
+
   function resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, CAMERA.maxDpr);
+    const dpr = Math.min(window.devicePixelRatio || 1, CAMERA.maxDpr) * QUALITY[gov.q];
     const w = Math.max(1, canvas.clientWidth || window.innerWidth), h = Math.max(1, canvas.clientHeight || window.innerHeight);
     canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
     const short = Math.min(w, h);
@@ -114,6 +132,7 @@ export function createRenderer(game, canvas) {
   }
 
   function render(dt, time) {
+    governor(dt);
     const state = game.state, world = game.world;
     if (!state || !world) { ctx.fillStyle = '#101820'; ctx.fillRect(0, 0, canvas.width, canvas.height); return; }
     prepare(world);
@@ -174,5 +193,5 @@ export function createRenderer(game, canvas) {
   const screenToWorld = (sx, sy) => ({ x: (cam.rx ?? cam.x) + sx / cam.scale, y: (cam.ry ?? cam.y) + sy / cam.scale });
   const worldToScreen = (x, y) => ({ x: (x - (cam.rx ?? cam.x)) * cam.scale, y: (y - (cam.ry ?? cam.y)) * cam.scale });
 
-  return { resize, render, screenToWorld, worldToScreen, lighting, snapCamera: () => { cam.snap = true; } };
+  return { resize, render, screenToWorld, worldToScreen, lighting, quality: () => gov.q, snapCamera: () => { cam.snap = true; } };
 }

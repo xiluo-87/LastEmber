@@ -4,7 +4,9 @@ import { harness, open, sleep } from './lib.mjs';
 const profile = process.argv.includes('--profile');
 const rate = Number((process.argv.find((a) => a.startsWith('--rate=')) || '--rate=4').slice(7));
 const { check, base, browser, finish } = await harness('perf');
-const P = await open(browser, 'portrait', base + 'index.html?seed=7&touch=1');
+const qArg = process.argv.find((a) => a.startsWith('--q='));
+const fixed = process.argv.includes('--fixed');   // --fixed pins full resolution (no adaptive governor)
+const P = await open(browser, 'portrait', base + 'index.html?seed=7&touch=1' + (qArg ? `&quality=${qArg.slice(4)}` : ''), { adaptive: !fixed && !qArg });
 await P.state(() => {
   const g = __game, sp = g.state.world.spawn, cx = sp.tx, cy = sp.ty;
   for (const [id, n] of [['wood', 80], ['stone', 30], ['stick', 20], ['rope', 6], ['flint', 1], ['coal', 6]]) g.debug.give(id, n);
@@ -25,14 +27,14 @@ await sleep(1500);
 const cdp = await P.ctx.newCDPSession(P.page);
 const run = async (label, r) => {
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: r });
-  await sleep(1200);
+  await sleep(r > 1 ? 9000 : 1200);   // give the adaptive resolution governor time to settle
   if (profile && r > 1) { await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 500 }); await cdp.send('Profiler.start'); }
   const m = await P.state(() => new Promise((res) => {
     const d = []; let last = performance.now(), n = 0;
-    const tick = (t) => { d.push(t - last); last = t; if (++n < 240) requestAnimationFrame(tick); else { d.shift(); d.sort((a, b) => a - b); const avg = d.reduce((a, b) => a + b, 0) / d.length; res({ fps: 1000 / avg, avg, p50: d[d.length >> 1], p95: d[Math.floor(d.length * 0.95)], max: d[d.length - 1], creatures: __game.state.creatures?.list?.length ?? -1 }); } };
+    const tick = (t) => { d.push(t - last); last = t; if (++n < 240) requestAnimationFrame(tick); else { d.shift(); d.sort((a, b) => a - b); const avg = d.reduce((a, b) => a + b, 0) / d.length; res({ fps: 1000 / avg, avg, p50: d[d.length >> 1], p95: d[Math.floor(d.length * 0.95)], max: d[d.length - 1], creatures: __game.state.creatures?.list?.length ?? -1, q: __game.renderer.quality(), dpr: __game.view.dpr }); } };
     requestAnimationFrame(tick);
   }));
-  console.log(`  ${label}: ${m.fps.toFixed(1)} fps  avg ${m.avg.toFixed(1)}ms  p50 ${m.p50.toFixed(1)}  p95 ${m.p95.toFixed(1)}  max ${m.max.toFixed(1)}  creatures ${m.creatures}`);
+  console.log(`  ${label}: ${m.fps.toFixed(1)} fps  avg ${m.avg.toFixed(1)}ms  p50 ${m.p50.toFixed(1)}  p95 ${m.p95.toFixed(1)}  max ${m.max.toFixed(1)}  creatures ${m.creatures}  quality step ${m.q} (dpr ${m.dpr})`);
   if (profile && r > 1) {
     const { profile: prof } = await cdp.send('Profiler.stop');
     const self = new Map(), byId = new Map(prof.nodes.map((n) => [n.id, n]));

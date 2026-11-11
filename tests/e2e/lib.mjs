@@ -33,7 +33,8 @@ export async function harness(name) {
 }
 
 /** Opens a page in a fresh context with console/pageerror capture. Returns helpers bound to the page. */
-export async function open(browser, view, url, { newGame = true, init } = {}) {
+export async function open(browser, view, url, { newGame = true, init, adaptive = false } = {}) {
+  if (!adaptive && !/[?&]quality=/.test(url)) url += (url.includes('?') ? '&' : '?') + 'quality=0';   // pin full resolution: the adaptive governor would drop it on slow CI
   const errors = [];
   const ctx = await browser.newContext(typeof view === 'string' ? VIEWS[view] : view);
   if (init) await ctx.addInitScript(init);
