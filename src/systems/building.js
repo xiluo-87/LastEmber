@@ -283,7 +283,11 @@ function updateGhost(game) {
   if (B.pinned) { tx = B.pinned.tx; ty = B.pinned.ty; }
   else if (it.aimActive && !it.uiBlocked) { const t = world.worldToTile(it.pointer.wx, it.pointer.wy); tx = t.tx; ty = t.ty; }
   else { const pt = world.worldToTile(p.x, p.y), [dx, dy] = dirTile(p.facing); tx = pt.tx + dx; ty = pt.ty + dy; }
-  const v = B.validate(B.selected, tx, ty);
+  let v = B.validate(B.selected, tx, ty);
+  if (v.code === 'standing' && !B.pinned && !(it.aimActive && !it.uiBlocked)) {   // standing on the edge of the tile in front: use the next one
+    const [dx, dy] = dirTile(p.facing), v2 = B.validate(B.selected, tx + dx, ty + dy);
+    if (v2.ok) { tx += dx; ty += dy; v = v2; }
+  }
   Object.assign(B.ghost, { tx, ty, valid: v.ok, reason: v.reason, code: v.code });
 }
 

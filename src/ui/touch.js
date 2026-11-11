@@ -21,12 +21,12 @@ export function createTouch(game, root, input) {
   const $ = (s) => root.querySelector(s);
   const joy = $('.joy'), base = $('.joy-base'), knob = $('.joy-knob'), actLabel = $('.act-label');
   const t = input.touch;
-  let joyId = null, ox = 0, oy = 0;
+  let joyId = null, ox = 0, oy = 0, joyT0 = 0;
 
   const setKnob = (dx, dy) => { knob.style.transform = `translate(${dx}px,${dy}px)`; };
   function joyStart(e) {
     if (joyId !== null) return;
-    joyId = e.pointerId; ox = e.clientX; oy = e.clientY;
+    joyId = e.pointerId; ox = e.clientX; oy = e.clientY; joyT0 = performance.now();
     joy.hidden = false; joy.style.left = `${ox}px`; joy.style.top = `${oy}px`; setKnob(0, 0);
     e.currentTarget.setPointerCapture(e.pointerId);
     t.active = true; t.x = t.y = 0; e.preventDefault();
@@ -45,6 +45,8 @@ export function createTouch(game, root, input) {
   }
   function joyEnd(e) {
     if (e.pointerId !== joyId) return;
+    // placement mode: a quick tap (no drag) on the joystick side also picks the ghost tile; a drag still just moves
+    if (e.type === 'pointerup' && game.building?.mode === 'place' && performance.now() - joyT0 < 350 && Math.hypot(e.clientX - ox, e.clientY - oy) < 14) input.worldTap(e.clientX, e.clientY);
     joyId = null; joy.hidden = true; joy.classList.remove('sprint');
     t.active = false; t.x = t.y = 0; t.sprint = false;
   }
