@@ -11,10 +11,10 @@ const STATS = ['health', 'hunger', 'thirst', 'warmth', 'stamina'];
 
 export function memStorage() { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) }; }
 
-export function runOne(profile, seed, { days = 8, saveEvery = true, maxSeconds = null } = {}) {
+export function runOne(profile, seed, { days = 8, saveEvery = true, maxSeconds = null, overrides = null } = {}) {
   const game = createGame({ storage: memStorage() });
   game.newGame(seed);
-  const bot = createBot(game, profile);
+  const bot = createBot(game, profile, { profile: overrides || {} });
   let over = null;
   game.events.on('game:over', (e) => { over = e; });
   const perDay = {}, below = { health: 0, hunger: 0, thirst: 0, warmth: 0, stamina: 0 };
@@ -87,9 +87,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const n = +(args.seeds || 10), first = +(args.first || 1), days = +(args.days || 8);
   const all = {};
   for (const pf of profiles) {
+    const overrides = args.set ? Object.fromEntries(String(args.set).split(',').map((kv) => { const [k, v] = kv.split('='); return [k, v === 'true' ? true : v === 'false' ? false : Number.isNaN(+v) ? v : +v]; })) : null;
     const rs = [];
     for (let s = first; s < first + n; s++) {
-      const r = runOne(pf, s, { days });
+      const r = runOne(pf, s, { days, overrides });
       rs.push(r);
       if (!args.quiet) console.log(`  ${pf} seed ${s}: ${r.won ? 'WON' : r.died ? 'died' : 'alive'} t=${f(r.secs)}s day ${r.day} ${r.cause} | fire ${f(r.miles.fire)} axe ${f(r.miles.axe)} shelter ${f(r.miles.shelter)} meal ${f(r.miles.meal)} | wall ${f(r.wall, 1)}s${r.errors ? ' ERR' + r.errors : ''}${r.status ? ' last:' + r.status : ''}`);
     }

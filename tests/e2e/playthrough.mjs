@@ -203,6 +203,12 @@ for (const view of views) {
   if (!(await placeAt('door', doorT[0], doorT[1]))) { placedAll = false; console.log('   door failed', await g(() => __game.building.ghost.reason)); }
   await g(() => __game.building.cancel());
   check(placedAll, `${view}: all walls and the door placed by tapping`);
+  {   // walk round the outside of the ring (no pathfinding in the test): east of it, down, then in front of the door
+    const px = await g(() => __game.state.player.y);
+    const eastX = (fire.tx + 4) * 32 + 70;
+    await P.goTo(eastX, px, 24, 12000);
+    await P.goTo(eastX, doorT[1] * 32 + 16 + 90, 24, 12000);
+  }
   await P.goTo(doorT[0] * 32 + 16, doorT[1] * 32 + 16 + 90, 20, 12000);
   await P.goTo(doorT[0] * 32 + 16, doorT[1] * 32 + 16, 12, 6000);
   await P.goTo(doorT[0] * 32 + 16, fire.ty * 32 + 16, 12, 6000);   // through the door into the room

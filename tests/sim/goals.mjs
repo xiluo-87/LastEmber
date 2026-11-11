@@ -372,13 +372,13 @@ export function createGoals(bot) {
       ['coat', () => prof.clothing && !coatWorn('fur_coat') && has('hide', 5) && (cnt('rope') >= 2 ? craftAt('fur_coat', { hide: 5, rope: 2 }) : ropeFor(2))],
       ['boots', () => prof.clothing && !coatWorn('fur_boots') && has('hide', 3) && (cnt('rope') >= 1 ? craftAt('fur_boots', { hide: 3, rope: 1 }) : ropeFor(1))],
       ['hat', () => prof.clothing && !coatWorn('fur_hat') && has('hide', 2) && (cnt('rope') >= 1 ? craftAt('fur_hat', { hide: 2, rope: 1 }) : ropeFor(1))],
-      ['stone', () => stoneUpgrade()],
-      ['spikes', () => spikeProject()],
-      ['woodstock', () => cnt('wood') < prof.stockpileWood && fetch('wood')],
-      ['sticks', () => cnt('stick') < 6 && fetch('stick')],
       ['wreck', () => prof.expeditions && dayNo() >= (prof.wreckDay ?? 3) && wreckProject()],
       ['iron', () => prof.iron && dayNo() >= (prof.ironDay ?? 4) && ironProject()],
       ['tower', () => prof.endgame && towerProject()],
+      ['stone', () => budget('stone', 200, stoneUpgrade)],
+      ['spikes', () => budget('spikes', 150, spikeProject)],
+      ['woodstock', () => cnt('wood') < prof.stockpileWood && fetch('wood')],
+      ['sticks', () => cnt('stick') < 6 && fetch('stick')],
       ['hides', () => prof.clothing && (!coatWorn('fur_coat') || !coatWorn('fur_boots') || !coatWorn('fur_hat')) && cnt('hide') < 10 && budget('hides', 150, huntStep)],
     ];
     for (const [name, fn] of steps) if (fn()) { bot.plan.step = name; return true; }
