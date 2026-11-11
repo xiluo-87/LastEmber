@@ -34,6 +34,14 @@ export function createUI(game, { hud: hudRoot, panels: panelsRoot, title: titleR
   if (touchOn) ui.touch = createTouch(game, touchRoot, game.input);
   createTitle(game, titleRoot);
 
+  // Storage blocked (private mode, sandboxed iframe, quota): the game keeps running; tell the player once that progress is not kept.
+  const rawSave = game.save; let warnedSave = false;
+  game.save = (...a) => {
+    const ok = rawSave.apply(game, a);
+    if (!ok && game.state && game.mode === 'playing' && !warnedSave) { warnedSave = true; ui.toast("Saving isn't available here - progress will be lost when you leave", 'bad', 4500); }
+    return ok;
+  };
+
   // global UI wiring from input events
   game.events.on('input:toggleBag', () => { if (game.mode === 'playing' && !game.paused) panels.toggle('bag'); });
   game.events.on('input:toggleBuild', () => {
