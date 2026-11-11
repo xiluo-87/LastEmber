@@ -28,7 +28,7 @@ Radio Tower and hold out until rescue. No zombies, no magic — weather, hunger 
 - Tile grid, `TILE = 32` world px. Map 128 x 128 tiles, seeded procedural (value noise). Border = impassable dense forest/cliffs.
 - Terrain types: `snow` (normal), `deep_snow` (move 60% speed), `ice` (frozen lake; fishing holes only here), `rock` (rocky ground; ore), `cliff` (impassable).
 - One object per tile max (resource node OR structure). Objects block movement unless flagged walkable.
-- Resource nodes: `tree` (wood, sticks; needs axe for wood, by hand gives sticks slowly), `dead_bush` (sticks, fiber), `rock_node` (stone, flint 60% per harvest; needs pickaxe for stone, by hand: loose stones), `iron_node` (3-4 iron ore; pickaxe), `coal_node` (3-5 coal; pickaxe), `berry_bush` (berries, regrows in 2 days), `herb` (herbs), `loose_stone`/`loose_stick` ground pickups near spawn for bootstrapping.
+- Resource nodes: `tree` (wood, sticks; needs axe for wood, by hand gives sticks slowly), `dead_bush` (sticks, fiber), `rock_node` (stone 4-6, flint 60% per harvest; needs pickaxe for stone, by hand: loose stones), `iron_node` (3-4 iron ore; pickaxe), `coal_node` (3-5 coal; pickaxe), `berry_bush` (berries, regrows in 2 days), `herb` (herbs), `loose_stone`/`loose_stick` ground pickups near spawn for bootstrapping.
 - POIs: `crash_site` (spawn; a few starting supplies in a crate), 3 x `wreckage` far apart (>= 40 tiles from spawn, each in a different quadrant) each holding one radio part (antenna, battery, circuit board) + loot; 2-3 `bear_den` on rock terrain guarding iron/coal clusters.
 - Player spawns near map centre in a clearing.
 
@@ -106,8 +106,8 @@ Furnace (lit): iron_ingot (2 iron_ore + 1 coal).
 | furnace | 8 stone, 2 coal | 120 | fuel like campfire (coal/wood only); smelting; heat +15 |
 | drying_rack | 4 stick, 2 rope | 30 | raw_meat → jerky in 120s, up to 3 at once |
 | snare | 2 stick, 1 rope | 10 | walkable; each dawn 50% chance to hold a rabbit (1 raw_meat, 1 hide) if >= 6 tiles from a lit fire |
-| spike_barricade | 3 stick, 1 wood | 60 | blocks; creatures touching/attacking take 8 dmg/s |
-| torch_post | 2 stick, 1 fat | 20 | light 4 tiles, burns 300s then needs fat/coal refuel; wolves avoid lit radius unless enraged |
+| spike_barricade | 3 stick, 1 wood | 60 | blocks; creatures touching/attacking take 3.5 dmg/s (round 2: was 8). A wolf stopped by a spike ring chews the spikes, not the wall behind them |
+| torch_post | 2 stick, 1 fat | 20 | light 4 tiles, burns 300s then needs fat/coal refuel; wolves avoid its lit radius unless enraged, **even after day 8** (campfires/furnaces stop deterring big packs on day 8, torch posts and the held torch never do) |
 | fishing_hole | 1 stick (needs pickaxe or axe; only on ice) | – | interact: 6s cast, 55% raw_fish; 8% line snaps |
 | radio_tower | 6 iron_ingot, 6 wood, 2 rope + antenna, battery, circuit | 300 | see §10 |
 
@@ -119,12 +119,12 @@ Placement: in build mode a ghost follows the tile in front of the player (or tap
 
 | creature | hp | speed (tiles/s) | behaviour | drops |
 |---|---|---|---|---|
-| rabbit | 6 | 4.2 | wanders, flees within 5 tiles | 1 raw_meat, 1 hide(50%) |
+| rabbit | 6 | 4.2 | wanders, flees within 5 tiles of a sprinting player, **1.5 tiles of a walking one** (spear reach 1.8: sneak up on it) | 1 raw_meat, 1 hide |
 | deer | 30 | 4.6 | herd 2–4, flees within 7 tiles (sneak = no sprint → 4 tiles) | 3 raw_meat, 2 hide, 1 bone, 1 fat |
 | wolf | 28 | 3.9 (player walk 3.2, sprint 4.8) | packs. Day: keeps distance, attacks only if player HP<40 or adjacent to their kill. Night: hunts player within 10 tiles; circles, lunges (dmg 9, cd 1.4s). Fears lit fire/torch: won't enter lit radius of fire while pack < boldness threshold. Flees at hp<30%. | 2 raw_meat, 1 hide, 1 bone, 1 fat |
-| bear | 120 | 3.6 | territorial around den (6 tiles); charges, dmg 25, cd 2s; returns home when you leave 12 tiles. Hibernates? No — always dangerous. | 6 raw_meat, 3 hide, 2 bone, 3 fat |
+| bear | 180 | 3.6 | territorial around den (6 tiles); charges, dmg 28, cd 1.5s, **poise: player hits do not interrupt its swing** (wolf wind-ups are still interrupted); returns home when you leave 12 tiles. Hibernates? No — always dangerous. | 6 raw_meat, 3 hide, 2 bone, 3 fat |
 
-Wolf escalation: pack size at night = `1 + floor(day/2)` (cap 6); from day 5 wolves will attack structures; from day 8 fire no longer deters packs >= 4.
+Wolf escalation: pack size at night = `1 + floor(day/2)` (**plateau: cap 6 from day 10**); from day 5 wolves will attack structures (x2.5 the damage they do to the player per hit); from day 8 **campfires and furnaces** no longer deter packs >= 4 (torch posts and a held torch still do; enraged signal packs fear nothing). A second natural pack the same night only comes after the first is gone, and is 70% of the size (`WOLF.secondPackFrac`); **none on a signal night** (the enraged waves take its place). Individual wolves flee below 30% hp (this is the pack's morale; no extra rule was needed).
 Spawning: off-screen, >= 14 tiles from player; population caps (rabbits 14, deer 8, wolves by pack rule, bears = dens). Despawn far wolves at dawn.
 Combat: melee = arc in facing direction with reach; brief knockback + hit flash; i-frames 0.5s for player after being hit. Bow: hold/tap fires arrow at target direction (auto-aim to nearest hostile within 30° cone on touch).
 
@@ -235,3 +235,52 @@ It does not fish, craft herbal tea, use torches/torch posts, scout with the flig
 3. Cooking and water boiling are instant and free; fuel is the only cost. Fishing (6 s cast, 55%) is likely the best food source where a lake is close.
 4. Day 1 is tight: first dusk at ~260 s after start; the bot has a closed shelter at ~120 s, a human may not.
 5. A bear on an iron cluster is the main danger of iron runs (the bot killed bears in 4-5 of 10 competent runs while mining; hp cost not measured); a first bear fight at full hp is untested with humans.
+
+## Appendix B. Balance log, round 2 (late game: is the win condition winnable?)
+
+**Tooling added.** `node tests/sim/scenarios.mjs <defence|signal|bear|expedition|all> [--seeds 10] [--days 8,12] [--only regex] [--set k=v]` builds late-game set-ups by DIRECT STATE SETUP (harness, not gameplay: walls/fire/kit/day are placed directly; combat, wolf AI, fuel, weather, waves, tower power and victory run through the real systems; the "player" acts only through the real input/item/structure paths). `tests/sim/defender.mjs` is the simple defender policy (stays inside, spears or shoots what is in reach, repairs and rebuilds walls, feeds the fire, bandages, drinks); the competent bot uses the same module at night. `node tests/sim/run.mjs --profile competent --give 8` = HARNESS ASSIST: 10 iron ingots, rope and any missing radio part are put in the bag at the start of day 8 (measures the bot's own tower/transmit/defend play without its weak iron logistics). `node tests/sim/evalbot.mjs [seeds] [day]` = base-readiness snapshot at a given day. `npm run test:sim` now also asserts the scenario targets (~45 s).
+
+**What the first scenario run found (before any number change).** (1) A complete spike ring made a base immune: wolves never chewed spikes (their wall target was picked from the player's side of the ring), they just stood against them and burned (hp loss 0, 22 wolves dead per signal run, 100% win). (2) Bears were stun-locked: every spear hit interrupted the wind-up, so a stone spear took 0-8 hp from a 120 hp bear. (3) The second natural pack plus two enraged waves put ~20 wolves on a signal night. (4) Expeditions are not a problem at all (see below).
+
+**Scenario results, 10 seeds each, simple defender, 5x5 interior base** (surv = alive at the end; signal = 3 consecutive nights = win)
+
+| scenario | before | after |
+|---|---|---|
+| defence d8-12, wood walls, stone spear | surv 100%, hp lost ~36, 1 wall lost | surv 100%, hp lost 24-35, 2-3 walls lost, 8-10 wolves killed |
+| defence d8-12, stone + spikes (+ torch posts) | 0 hp lost, 0 spikes lost (immune) | stone+spikes: hp lost 16-25, 2.5 spikes lost; with torch posts: 0 hp lost (posts deter non-enraged packs) |
+| signal d10, wood walls, stone spear | win 0% | win 30% (d8 90%, d12 40%) |
+| signal d8/d10/d12, stone + spikes, stone spear | 100 / 100 / 100% | 100 / 80 / 40% |
+| signal d8/d10/d12, stone + spikes, iron spear | 100 / 100 / 100% | 100 / 90 / 70% |
+| signal d8/d10/d12, stone + spikes, bow | 100 / 100 / 100% | 100 / 90 / 80% |
+| bear, stone spear / iron spear / bow (hp lost, win) | 8 hp 100% / 3 hp 100% / 0 hp 100% | 85 hp 95% / 56 hp 100% / 0 hp 100% |
+| expedition, wreckage round trip (day 3/5/7, jacket or fur, clear or blizzard) | success 77-94%, no deaths, ~55 s | unchanged: no deaths, median 56 s of 264-288 s daylight; jacket-only blizzard day 7 is the only risky cell (min warmth 9, 77% success, 0 deaths); fur 90% (the failures are an unreachable site on one seed, not the weather) |
+
+Reading: a stone + spike base with an iron spear or bow holds three signal nights in 70-100% of runs at days 8-12 (about 90-97% per night for this defender, easier than the 60-80% per-night target; the extra lever is `ENDGAME.enragedPackBonus`, `AI.wolf.structureDmgMult`, repair strength, see risks). A wooden base is mostly lost from day 10 (30-40%). The failures that remain are almost all hypothermia after a wall breach during a blizzard night, not bites.
+
+**Number and rule changes**
+| value | old | new | why |
+|---|---|---|---|
+| spike contact damage | 8/s | 3.5/s | with wolves now chewing spikes (below) a wolf dies about when it breaks one spike |
+| wolf damage to structures | x1 | x2.5 (`AI.wolf.structureDmgMult`) | walls/spikes must actually fall to a pack |
+| rule: blocking structure | wolf chewed the wall bordering the player's room | wolf chews the blocking structure within 1.6 tiles that is nearest the player (`pickNearBlocker`) | exploit (1) |
+| rule: torch posts | fire/torch fear dropped on day 8 for packs >= 4 | day 8 drops fear of campfire/furnace only; torch posts and the held torch keep deterring non-enraged packs (`A.fearMode`) | DESIGN already said posts deter unless enraged; gives posts a late-game job (fat/coal upkeep) |
+| second natural pack same night | full size, 90 s after the first | 70% (`WOLF.secondPackFrac`), none on a signal night (`A.nextNightPack`) | plateau; ~20 wolves a night was not a climax |
+| wolf pack size cap | 6 | 6 (kept) | already a plateau from day 10; pack morale needed no extra rule: each wolf flees below 30% hp, the pack thins out on its own |
+| bear | hp 120, dmg 25, cd 2, interruptible | hp 180, dmg 28, cd 1.5, poise (hits do not interrupt its swing) | exploit (2); stone spear is now a coin-flip with ~85 hp lost, iron spear ~56, bow kiting free |
+| rock_node stone | 2-4 | 4-6 | a 12-wall stone ring is ~7 boulders; the bot converts it in about 150-250 s of work spread over days 3-5 |
+| rabbit walking flee range | 5 (same as sprint) | 1.5 (sprint 5) | a spear (reach 1.8) can reach a rabbit if you sneak; 8/8 rabbits killed in 120 s in an isolated test; sloppy bot's first kill at 57 s (was never) |
+| rabbit hide chance | 50% | 100% | 10 hides make a full fur set; spear + snares are the early meat/hide loop |
+
+**Checked and left alone:** wood/stone wall hp (QA tests assert 80/200), repair (+50% hp per unit, 0.4 s; very strong, see risks), wreckage distance (a round trip is ~55 s, so expeditions are limited by risk and bears, not time), snare 50%, wolf hp/damage, temperature curve.
+
+**Bot (competent), 10 seeds, 16 days.** Round 1: median day 12, 9/10 dead by day 14, 0 wins. Round 2: median day 14, 10/10 reach day 9, 0 wins, causes spread (bleeding 3, wolf 3, hypothermia 3, starvation 1). By day 8 the bot has the full stone ring (11 walls), 14-17 spikes and a fur coat, and usually all three radio parts (median ~day 4-5). It still does NOT win unassisted: it never builds a furnace (iron mining at a bear den takes it back and forth between flint trips for arrows and bear flights). With the harness assist at day 8 (10 ingots) it builds the tower in 7/10 runs and **wins 6/10** (median death/victory day 12). The win rate target (30-60% of seeds) is therefore NOT reached by the bot alone: the reason is bot skill (iron logistics, bag management, food discipline), not the game, and the scenario table is the evidence that the endgame is winnable. Bot changes: shared defender at night/dusk, stone ring and spike ring right after food, bear rule (kite with bow, iron-spear melee, else run home), spear sneak-hunting of rabbits, bag hygiene (cloth to bandages, drop junk), unstick from wall pockets, no sleeping from day 8.
+
+**Early-game regression check (same 10 seeds):** idle dead 345-392 s (warmth 0 not before ~330 s: the unit assertion >= 290 s holds); sloppy median day 4 (1759 s, 0/10 reach day 6; round 1: 1726 s); rusher median day 4 (1400 s; round 1: 1703 s, a bit worse because it now hunts rabbits by spear instead of walking past them); competent first axe 8 s, fire 37 s, shelter 107 s, first hunt 129 s (round 1: 181 s), first meal ~400 s.
+
+**Remaining risks for a human playtester**
+1. Signal difficulty rests on a strong defender trick: a spear reaches over a wall (reach 1.8 + wolf radius), and repair is +50% hp per unit every 0.4 s, which out-heals a pack at the price of wood/stone. If humans find the signal nights a formality, raise `enragedPackBonus` to 3-4, weaken repair, or let wolves reach over walls; if too hard, lower `structureDmgMult` toward 1.5.
+2. Cold after a breach is the real killer at days 10+: in a blizzard night an unsheltered player loses warmth in about 90 s. The HUD does warn; a "room open" cue near the player is worth checking.
+3. Bears: stone spear is nearly suicidal and iron is the intended answer; but iron lives at the dens, so the first iron run needs a bow. Check that the bow-first route is discoverable.
+4. Wreckage trips are ~1 minute: the three parts are easy to get by day 4-5 once you know where they are (flight map in the crate).
+5. Early meat: spear sneak-hunting works in isolation; whether a human finds "walk, do not sprint" without a hint is untested (tutorial tip candidate for QA/UX).
+6. The stone ring needs ~7 boulders; seeds with few boulders within 25 tiles will make the upgrade slower than in the bot runs.

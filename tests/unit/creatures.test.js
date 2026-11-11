@@ -86,7 +86,7 @@ test('combat geometry: swing arc, aim cone, drops, spawn caps', () => {
   assert.equal(A.pickAim(0, 0, 0, [cands[0], cands[3]], range, cone), null); // outside the 30deg cone
   assert.equal(A.pickAim(0, 0, 0, [{ x: 8 * TILE, y: 0 }], range, cone), null); // out of range
   assert.deepEqual(A.rollDrops(CREATURES.wolf, () => 0.1).map((d) => d.item), ['raw_meat', 'hide', 'bone', 'fat']);
-  assert.deepEqual(A.rollDrops(CREATURES.rabbit, () => 0.99).map((d) => d.item), ['raw_meat']);   // hide is 50%
+  assert.deepEqual(A.rollDrops(CREATURES.rabbit, () => 0.99).map((d) => d.item), ['raw_meat', 'hide']);   // round 2: a rabbit always leaves its hide (coats need ~10 hides)
   assert.deepEqual(A.rollDrops(CREATURES.rabbit, () => 0.1).map((d) => d.item), ['raw_meat', 'hide']);
   const room = A.spawnRoom({ rabbit: 14, deer: 3, wolf: 0, bear: 0 }, SPAWN.caps);
   assert.equal(room.rabbit, 0); assert.equal(room.deer, 5);
@@ -282,4 +282,72 @@ test('spike barricades hurt creatures that touch them; hostilesNear for the slee
   const wolf = spawnCreature(g, 'wolf', p.x + 5 * TILE, p.y); wolf.fz = 1;
   assert.equal(hostilesNear(g, p.x, p.y, 8).length, 1);
   assert.equal(hostilesNear(g, p.x, p.y, 4).length, 0);
+});
+
+// ---------------------------------------------------------------- balance round 2 rules
+test('r2 fear modes: enraged fear nothing; day-8+ big packs fear only torches; small/early packs fear all fire', () => {
+  assert.equal(A.fearMode({ day: 3, packSize: 2, enraged: false }), A.FEAR_ALL);
+  assert.equal(A.fearMode({ day: 8, packSize: 3, enraged: false }), A.FEAR_ALL);
+  assert.equal(A.fearMode({ day: 8, packSize: 5, enraged: false }), A.FEAR_TORCHES);
+  assert.equal(A.fearMode({ day: 12, packSize: 6, enraged: true }), A.FEAR_NONE);
+});
+
+test('r2 night packs: full pack first, a smaller second one later, none on a signal night or past the cap', () => {
+  const full = A.packSizeForDay(10);
+  assert.equal(A.nextNightPack({ day: 10, packsTonight: 0 }), full);
+  assert.equal(A.nextNightPack({ day: 10, packsTonight: 1 }), Math.ceil(full * WOLF.secondPackFrac));
+  assert.ok(A.nextNightPack({ day: 10, packsTonight: 1 }) < full);
+  assert.equal(A.nextNightPack({ day: 10, packsTonight: 1, signal: true }), 0);
+  assert.equal(A.nextNightPack({ day: 10, packsTonight: 2 }), 0);
+  assert.equal(A.nextNightPack({ day: 10, packsTonight: 0, signal: true }), full);      // the natural pack still comes on a signal night
+});
+
+test('r2 torch posts keep a day-8 pack (ignores campfires) out of their light, a campfire alone does not', () => {
+  const run = (post) => {
+    const g = fresh(9); clearAround(g, 14);
+    g.state.creatures.list = g.state.creatures.list.filter((c) => c.type === 'bear');
+    const p = g.state.player, t = g.world.worldToTile(p.x, p.y);
+    g.world.setObject(t.tx + 1, t.ty, { type: 'campfire', hp: 40, lit: true, fuel: 590, everLit: true });
+    if (post) for (const [dx, dy] of [[3, 3], [-3, 3], [3, -3], [-3, -3], [0, 3], [0, -3], [3, 0], [-3, 0]]) g.world.setObject(t.tx + dx, t.ty + dy, { type: 'torch_post', hp: 20, lit: true, fuel: 300 });
+    g.state.time.day = 8; g.state.time.t = 305;
+    let hits = 0; g.events.on('player:damaged', () => hits++);
+    for (let i = 0; i < 60 * 90; i++) { g.state.player.health = 100; g.state.player.warmth = 100; for (const o of g.building.list('torch_post')) o.fuel = 300; g.step(1); }
+    return hits;
+  };
+  assert.ok(run(false) >= 1, 'campfire only: the pack gets through');
+  assert.equal(run(true), 0, 'torch posts around the camp keep the pack off');
+});
+
+test('r2 a wolf stopped by a spike ring chews the SPIKES (not the wall behind them); spikes hurt it meanwhile', () => {
+  const g = fresh(14); clearAround(g, 14);
+  g.state.creatures.list.length = 0; g.state.creatures.spawnT = 1e9; g.state.creatures.packDay = 9; g.state.creatures.packsTonight = 9;
+  const p = g.state.player, t = g.world.worldToTile(p.x, p.y);
+  for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+    const m = Math.max(Math.abs(dx), Math.abs(dy));
+    if (m === 2) g.world.setObject(t.tx + dx, t.ty + dy, { type: 'stone_wall', hp: 200 });
+    if (m === 3) g.world.setObject(t.tx + dx, t.ty + dy, { type: 'spike_barricade', hp: 60 });
+  }
+  g.state.time.day = 9; g.state.time.t = 330;
+  const w = spawnCreature(g, 'wolf', p.x + 8 * TILE, p.y, { pack: 1, packSize: 1, enraged: true }); g.state.creatures.packs[1] = { id: 1, kind: 'wolf', size: 1, en: 1, tx: -1, ty: 0, nextLunge: 0, dir: 1 };
+  w.th = 0;
+  const hit = {}; g.events.on('structure:damaged', (e) => { hit[e.type] = (hit[e.type] || 0) + 1; });
+  for (let i = 0; i < 60 * 25 && w.hp > 0; i++) { g.state.player.warmth = 100; g.state.player.health = 100; g.step(1); }
+  assert.ok((hit.spike_barricade || 0) >= 1, `spikes chewed: ${JSON.stringify(hit)}`);
+  assert.ok(!hit.stone_wall, 'the wolf never reached the wall');
+  assert.ok(w.hp < CREATURES.wolf.hp, 'spikes hurt the wolf');
+});
+
+test('r2 a bear is not interrupted by player hits (poise); a wolf wind-up still is', () => {
+  const g = fresh(5); clearAround(g, 8); g.state.creatures.list.length = 0; g.state.creatures.spawnT = 1e9;
+  const b = spawnCreature(g, 'bear', g.state.player.x + 2 * TILE, g.state.player.y); b.ai = 'windup'; b.t = 0.1;
+  hurtCreature(g, b, 5, { angle: 0 });
+  assert.equal(b.ai, 'windup', 'bear keeps swinging');
+  const w = spawnCreature(g, 'wolf', g.state.player.x + 2 * TILE, g.state.player.y); w.ai = 'telegraph'; w.t = 0.1;
+  hurtCreature(g, w, 5, { angle: 0 });
+  assert.equal(w.ai, 'recover', 'wolf wind-up is interrupted');
+});
+
+test('r2 a walking player can get a rabbit within spear reach before it bolts; a sprinting one cannot', () => {
+  assert.ok(A.fleeRange(CREATURES.rabbit, false) < 1.8 + CREATURES.rabbit.radius, 'sneak range inside spear reach');
+  assert.ok(A.fleeRange(CREATURES.rabbit, true) > 4);
 });

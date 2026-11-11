@@ -62,3 +62,45 @@ test('save -> load round trip restores the full state exactly (bot-driven, 3 che
     assert.deepEqual(strip(g.state), before, `state diverged after load at ${stopAt}`);
   }
 });
+
+// ---------------------------------------------------------------- round 2: late-game scenario harness (direct state set-up, see scenarios.mjs)
+import { runNight, runBear, runExpedition } from './scenarios.mjs';
+const sum = (rs, k) => rs.reduce((s, r) => s + r[k], 0);
+
+test('scenario defence: a wooden base at day 10 is under real threat but survivable; stone + spikes + torch posts hold with little damage', () => {
+  const wood = [1, 2, 3].map((s) => runNight(s, { day: 10, wall: 'wood', kit: 'stone_spear' }));
+  assert.ok(wood.filter((r) => !r.died).length >= 2, 'wood survivable with active defence');
+  assert.ok(sum(wood, 'hpLost') + sum(wood, 'walls') * 10 > 0, 'wolves hurt or chew something');
+  const stone = [1, 2, 3].map((s) => runNight(s, { day: 10, wall: 'stone', spikes: true, torches: true, kit: 'stone_spear' }));
+  assert.equal(stone.filter((r) => r.died).length, 0);
+  assert.ok(sum(stone, 'hpLost') <= sum(wood, 'hpLost'), 'the fortified base costs less hp');
+});
+
+test('scenario signal: stone walls + spike ring + iron spear usually finish three nights; wooden walls + stone spear at day 12 almost never do', () => {
+  const good = [1, 2, 3, 4].map((s) => runNight(s, { day: 9, wall: 'stone', spikes: true, kit: 'iron_spear', tower: true, nights: 3 }));
+  assert.ok(good.filter((r) => r.won).length >= 2, `fortified wins ${good.filter((r) => r.won).length}/4`);
+  const bad = [1, 2, 3, 4].map((s) => runNight(s, { day: 12, wall: 'wood', kit: 'stone_spear', tower: true, nights: 3 }));
+  assert.ok(bad.filter((r) => r.won).length <= 2, `wood wins ${bad.filter((r) => r.won).length}/4`);
+  assert.ok(good.filter((r) => r.won).length > bad.filter((r) => r.won).length);
+});
+
+test('scenario bear: the stone spear costs most of your health, the iron spear about half, a kiting bow nothing', () => {
+  const run = (kit) => [1, 2, 3, 4, 5, 6].map((s) => runBear(s, { kit }));
+  const st = run('stone_spear'), ir = run('iron_spear'), bw = run('bow');
+  const hp = (rs) => sum(rs, 'hpLost') / rs.length;
+  assert.ok(hp(st) >= 60, `stone spear hp lost ${hp(st)}`);
+  assert.ok(hp(ir) < hp(st) && hp(ir) >= 20, `iron spear hp lost ${hp(ir)}`);
+  assert.ok(hp(bw) < 25 && bw.every((r) => r.won), `bow hp lost ${hp(bw)}`);
+});
+
+test('scenario expedition: a wreckage is a short round trip in clear weather and survivable in a blizzard with fur and an emergency fire', () => {
+  const rs = [1, 2, 3, 4].map((s) => runExpedition(s, { day: 6, fur: true, blizzard: true, site: 0 }));
+  assert.ok(rs.filter((r) => r.home && !r.died).length >= 3);
+  assert.ok(rs.every((r) => r.secs < 150), 'well inside the daylight');
+});
+
+test('competent bot: stone ring and spike ring exist before day 8, and it is alive then', () => {
+  const r = runOne('competent', 2, { days: 8 });
+  assert.ok(!r.died, `died ${r.cause}`);
+  assert.ok(r.miles.built_stone_wall < 8 * 480 && r.miles.built_spike_barricade < 8 * 480, JSON.stringify([r.miles.built_stone_wall, r.miles.built_spike_barricade]));
+});

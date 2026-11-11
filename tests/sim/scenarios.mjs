@@ -319,7 +319,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (which === 'signal' || which === 'all') { console.log('== signal (3 consecutive nights, tower beside the fire)'); run(SIGNAL_GRID(days || [8, 10, 12]), true); }
   if (which === 'bear' || which === 'all') {
     console.log('== bear (player at 100% hp, fur clothing, 2 bandages)');
-    for (const kit of ['stone_spear', 'iron_spear', 'bow', 'iron_bow']) for (const dodge of kit.includes('bow') ? [false] : [false, true]) {
+    for (const kit of ['stone_spear', 'iron_spear', 'bow', 'iron_bow']) for (const dodge of [false]) {
       const rs = []; for (let s = first; s < first + N; s++) rs.push(runBear(s, { kit, dodge, ...over }));
       console.log(`${kit.padEnd(12)}${dodge ? ' +dodge' : '       '} win ${pct(rs.filter((r) => r.won).length, N)} | hpLost ${f(rs.reduce((s, r) => s + r.hpLost, 0) / N)} (winners ${f(median(rs.filter((r) => r.won).map((r) => r.hpLost)) || 0)}) | time ${f(median(rs.map((r) => r.time)), 1)}s | bandages ${f(rs.reduce((s, r) => s + r.bandaged, 0) / N, 1)}`);
     }
