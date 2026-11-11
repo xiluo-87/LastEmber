@@ -6,133 +6,155 @@ import { registerSprite, getSprite, makeCanvas } from '../sprites.js';
 import { PAL, shadow, ellipse, roundRect } from './util.js';
 import { STRUCTURES } from '../../data/structures.js';
 
-// ---------------------------------------------------------------- walls (palisade / stone) + doors
-const TOP = 16, WH = 14;                        // tile origin y inside the sprite, wall height (px)
-const BOX = {                                   // arm boxes in sprite coords (post is 18x18 centred in the tile)
-  post: [7, TOP + 7, 25, TOP + 25], N: [7, TOP, 25, TOP + 7], E: [25, TOP + 7, 32, TOP + 25], S: [7, TOP + 25, 25, TOP + 32], W: [0, TOP + 7, 7, TOP + 25],
+// ---------------------------------------------------------------- walls (log palisade / stacked stone) + doors
+// Geometry: a wall is 12 px thick, WH px tall, seen from above with a slight front face (same view as trees and the campfire).
+// Variant = 4-bit connection mask. Logs / stones sit on lattices that are aligned to the tile grid (seeded by lattice cell, not rng),
+// so neighbouring tiles join seamlessly. The sprite is padded by PADX on both sides and TOP above so caps are never clipped.
+const TOP = 22, WH = 15, PADX = 4, TH = 12, T0 = (32 - TH) / 2;
+const BOX = {
+  post: [T0, TOP + T0, T0 + TH, TOP + T0 + TH], N: [T0, TOP, T0 + TH, TOP + T0], E: [T0 + TH, TOP + T0, 32, TOP + T0 + TH],
+  S: [T0, TOP + T0 + TH, T0 + TH, TOP + 32], W: [0, TOP + T0, T0, TOP + T0 + TH],
 };
 const boxesFor = (mask) => [mask & 1 && BOX.N, mask & 8 && BOX.W, mask & 2 && BOX.E, BOX.post, mask & 4 && BOX.S].filter(Boolean);
-const frontRect = ([x0, , x1, y1]) => [x0, y1 - WH, x1 - x0, WH];
-const topRect = ([x0, y0, x1, y1]) => [x0, y0 - WH, x1 - x0, y1 - y0];
-function clipRects(ctx, rects) { ctx.beginPath(); for (const r of rects) ctx.rect(...r); ctx.clip(); }
+/** Footprint used to place logs/stones: vertical arms are a hair narrower so a north-south run reads as one zig-zag file, not a cobble mat. */
+const lattBoxes = (mask) => {
+  const m = 1.5, post = [mask & 8 ? BOX.post[0] : BOX.post[0] + m, BOX.post[1], mask & 2 ? BOX.post[2] : BOX.post[2] - m, BOX.post[3]];
+  return [mask & 1 && [BOX.N[0] + m, BOX.N[1], BOX.N[2] - m, BOX.N[3]], mask & 8 && BOX.W, mask & 2 && BOX.E, post, mask & 4 && [BOX.S[0] + m, BOX.S[1], BOX.S[2] - m, BOX.S[3]]].filter(Boolean);
+};
+const inBoxes = (boxes, x, y) => boxes.some((b) => x >= b[0] - 0.01 && x <= b[2] + 0.01 && y >= b[1] - 0.01 && y <= b[3] + 0.01);
+const hash = (a, b) => { const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return s - Math.floor(s); };
 
 function snowBlob(ctx, x, y, rx, ry, a = 0.95) {
   ctx.fillStyle = `rgba(247,250,252,${a})`; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = 'rgba(160,184,212,0.55)'; ctx.beginPath(); ctx.ellipse(x + 0.4, y + ry * 0.55, rx * 0.9, ry * 0.45, 0, 0, Math.PI); ctx.fill();
 }
 
-function drawWoodWall(ctx, mask, rng, { door = null, open = false } = {}) {
-  const boxes = boxesFor(mask);
-  shadow(ctx, 16, TOP + 28, 17, 4.6, 0.3);
-  // drop shadow under every box
-  ctx.fillStyle = 'rgba(70,88,115,0.22)';
-  for (const b of boxes) ctx.fillRect(b[0] + 1, b[3] - 1, b[2] - b[0], 3);
-  // front faces: vertical logs (period 32/7 keeps tiles aligned)
-  const P = 32 / 7;
-  ctx.save(); clipRects(ctx, boxes.map(frontRect));
-  const fy = TOP + 2, fh = TOP + 36;
-  for (let i = -1; i < 8; i++) {
-    const x = i * P, shade = (i % 3 === 0) ? 0 : (i % 3 === 1) ? 1 : 2;
-    const g = ctx.createLinearGradient(x, 0, x + P, 0);
-    const base = ['#8b5a2b', '#7d4f25', '#96612f'][shade];
-    g.addColorStop(0, '#a9763f'); g.addColorStop(0.3, base); g.addColorStop(1, '#5a3817');
-    ctx.fillStyle = g; ctx.fillRect(x, 0, P, 60);
-    ctx.fillStyle = 'rgba(35,20,8,0.55)'; ctx.fillRect(x + P - 0.9, 0, 0.9, 60);
-    ctx.fillStyle = 'rgba(255,220,160,0.14)'; ctx.fillRect(x + 0.7, 0, 0.9, 60);
-    // knots
-    if ((i * 7 + (rng() * 3 | 0)) % 4 === 0) { ctx.fillStyle = 'rgba(50,28,10,0.45)'; ctx.beginPath(); ctx.ellipse(x + P / 2, TOP + 26 + rng() * 4, 0.9, 1.6, 0, 0, 7); ctx.fill(); }
+/** One upright log standing on ground point (gx, gy). cap: 0 bare end, 1 half snow, 2 full snow cap. */
+function drawLog(ctx, gx, gy, w, h, shade, cap) {
+  const x0 = gx - w / 2, top = gy - h;
+  const body = ['#8b5a2b', '#7d4f25', '#96612f', '#85552a'][shade];
+  const g = ctx.createLinearGradient(x0, 0, x0 + w, 0);
+  g.addColorStop(0, '#b27d45'); g.addColorStop(0.35, body); g.addColorStop(1, '#4e3015');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x0, top); ctx.lineTo(x0 + w, top); ctx.lineTo(x0 + w, gy - 0.6);
+  ctx.quadraticCurveTo(gx, gy + 1.6, x0, gy - 0.6); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(30,16,6,0.6)'; ctx.fillRect(x0 + w - 0.7, top, 0.7, h - 0.4);            // seam to the next log
+  ctx.fillStyle = 'rgba(255,225,170,0.16)'; ctx.fillRect(x0 + 0.6, top + 1, 0.8, h - 3);
+  if (shade === 2) { ctx.fillStyle = 'rgba(40,22,8,0.4)'; ctx.beginPath(); ctx.ellipse(gx, gy - h * 0.35, 0.8, 1.5, 0, 0, 7); ctx.fill(); }   // knot
+  // log end (top face)
+  ctx.fillStyle = '#3f2711'; ctx.beginPath(); ctx.ellipse(gx, top, w / 2 + 0.25, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = ['#cfa56e', '#c39a62', '#d6ae78', '#c8a068'][shade]; ctx.beginPath(); ctx.ellipse(gx, top - 0.1, w / 2 - 0.5, 1.8, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(120,76,32,0.8)'; ctx.lineWidth = 0.4; ctx.beginPath(); ctx.ellipse(gx, top - 0.1, w / 4, 0.9, 0, 0, Math.PI * 2); ctx.stroke();
+  if (cap) {   // snow resting on the log end
+    const ry = cap === 2 ? 2.7 : 1.7;
+    ctx.fillStyle = 'rgba(248,251,253,0.97)'; ctx.beginPath(); ctx.ellipse(gx - (cap === 1 ? 0.3 : 0), top - (cap === 2 ? 0.8 : 1.1), w / 2 + 0.2, ry, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(150,176,208,0.6)'; ctx.beginPath(); ctx.ellipse(gx, top + 0.7, w / 2 - 0.2, 0.9, 0, 0, Math.PI); ctx.fill();
   }
-  ctx.fillStyle = 'rgba(20,10,4,0.28)'; ctx.fillRect(0, 0, 40, 60);   // shade the whole front a little (sun from the north)
-  ctx.globalAlpha = 1; ctx.restore();
-  // rope lashing band across the front
-  ctx.save(); clipRects(ctx, boxes.map(frontRect));
-  ctx.fillStyle = 'rgba(200,164,106,0.9)'; for (const b of boxes) ctx.fillRect(b[0], b[3] - WH + 4.5, b[2] - b[0], 1.6);
-  ctx.restore();
-  // snow at the foot
-  for (const b of boxes) for (let x = b[0] + 2; x < b[2]; x += 6) snowBlob(ctx, x + rng() * 2, b[3] + 0.2, 4.2, 1.8, 0.9);
-  // door cut-out replaces the post front
-  if (door) drawDoorLeaf(ctx, mask, open, rng);
-  // top faces: log ends
-  ctx.save(); clipRects(ctx, boxes.map(topRect));
-  ctx.fillStyle = '#6a4322'; ctx.fillRect(0, 0, 32, 60);
-  for (let row = 0; row < 14; row++) {
-    const y = 1 + row * 4 + 2;
-    for (let i = -1; i < 8; i++) {
-      const x = i * P + P / 2 + (row % 2 ? P / 2 : 0) * 0;
-      ctx.fillStyle = '#4a2e14'; ctx.beginPath(); ctx.arc(x, y, 2.35, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = ['#c79a63', '#bf9159', '#d1a470'][(row + i + 8) % 3]; ctx.beginPath(); ctx.arc(x, y, 1.85, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = 'rgba(110,70,30,0.75)'; ctx.lineWidth = 0.45; ctx.beginPath(); ctx.arc(x, y, 1.0, 0, Math.PI * 2); ctx.stroke();
+}
+
+function drawWoodWall(ctx, mask, rng, { door = null, open = false } = {}) {
+  ctx.translate(PADX, 0);
+  const boxes = boxesFor(mask);
+  shadow(ctx, 16, TOP + 27, 17, 5, 0.3);
+  for (const b of boxes) { ctx.fillStyle = 'rgba(70,88,115,0.2)'; ctx.fillRect(b[0] + 1, b[3] - 1.5, b[2] - b[0], 4); }
+  const SX = 32 / 6, SY = 4, lb = lattBoxes(mask);
+  const logs = [];
+  for (let j = 0; j < 9; j++) {
+    const gy = TOP + SY * j + 0.0;
+    for (let i = -1; i <= 6; i++) {
+      const gx = SX * (i + (j & 1 ? 1 : 0.5));
+      if (!inBoxes(lb, gx, gy) || (door && gx > BOX.post[0] - 1 && gx < BOX.post[2] + 1 && gy >= BOX.post[1] - 1)) continue;
+      if (door && inBoxes([BOX.post], gx, gy)) continue;
+      if (door && (!(mask & 5) || (mask & 10)) && gx > 3 && gx < 29) continue;   // east-west gate: the whole span between the gate posts is open
+      logs.push([gx, gy, j, i]);
     }
   }
-  // snow caps on some log ends
-  for (let k = 0; k < 24; k++) { const x = rng() * 34 - 1, y = rng() * 70; if (rng() < 0.85) snowBlob(ctx, x, y, 1.6 + rng() * 1.8, 1.0 + rng() * 0.9, 0.92); }
-  ctx.restore();
-  // light rim on the near edge of each top face
-  ctx.strokeStyle = 'rgba(255,235,200,0.35)'; ctx.lineWidth = 0.8;
-  for (const b of boxes) { ctx.beginPath(); ctx.moveTo(b[0], b[3] - WH + 0.4); ctx.lineTo(b[2], b[3] - WH + 0.4); ctx.stroke(); }
+  for (const [gx, gy, j, i] of logs) {   // back to front (rows ascend)
+    const h = WH + (hash(i + 31, j + (j & 1 ? 0 : 0)) - 0.5) * 3.2, c = hash(i, j * 3 + 1);
+    drawLog(ctx, gx, gy + 1.5, 5.1, h, (hash(i + 5, j) * 4) | 0, c < 0.45 ? 2 : c < 0.8 ? 1 : 0);
+  }
+  // rope lashing across horizontal runs
+  if (mask & 10 || !(mask & 5)) {
+    const xa = mask & 8 || !(mask & 2) ? (mask & 8 ? 0 : BOX.post[0]) : BOX.post[0], xb = mask & 2 ? 32 : BOX.post[2];
+    if (!door) { ctx.fillStyle = 'rgba(214,180,120,0.9)'; ctx.fillRect(xa, BOX.post[3] - 5.2, xb - xa, 1.4); ctx.fillStyle = 'rgba(90,60,20,0.5)'; ctx.fillRect(xa, BOX.post[3] - 3.9, xb - xa, 0.6); }
+  }
+  // snow drifted at the foot
+  for (const b of boxes) for (let x = b[0] + 2; x < b[2] + 1; x += 5.3) snowBlob(ctx, x, b[3] + 1.7, 3.8, 1.6, 0.9);
+  if (door) drawDoorLeaf(ctx, mask, open, rng);
+  ctx.translate(-PADX, 0);
 }
 
 function drawDoorLeaf(ctx, mask, open, rng) {
   const horiz = !(mask & 5) || (mask & 10);          // wall line runs east-west (default for a lone door)
-  const [x0, y0, x1, y1] = BOX.post, fy = y1 - WH;
+  const [x0, y0, x1, y1] = BOX.post, fy = y1 - WH + 1.5, hw = 3.4;
   ctx.save();
   if (horiz) {
-    // frame posts + door leaf in the post box front
-    ctx.fillStyle = '#5a3817'; ctx.fillRect(x0, fy, 3, WH); ctx.fillRect(x1 - 3, fy, 3, WH);
+    // two tall gate posts (bare log ends), a lintel beam and the leaf between them
+    const px = [3.2, 24.8], lx0 = 6.8, lx1 = 25;
     if (!open) {
-      const g = ctx.createLinearGradient(0, fy, 0, y1); g.addColorStop(0, '#b98250'); g.addColorStop(1, '#8a5a30');
-      ctx.fillStyle = g; ctx.fillRect(x0 + 3, fy, x1 - x0 - 6, WH);
-      ctx.fillStyle = 'rgba(40,22,8,0.55)'; for (let x = x0 + 3 + 3.2; x < x1 - 3; x += 3.2) ctx.fillRect(x, fy, 0.8, WH);
-      ctx.fillStyle = '#3b4655'; ctx.fillRect(x0 + 3, fy + 3, x1 - x0 - 6, 1.7); ctx.fillRect(x0 + 3, y1 - 4.5, x1 - x0 - 6, 1.7);
-      ctx.fillStyle = '#e6c27a'; ctx.beginPath(); ctx.arc(x1 - 6.4, fy + WH / 2 + 0.5, 1.2, 0, 7); ctx.fill();
+      const g = ctx.createLinearGradient(0, fy, 0, y1 + 1.5); g.addColorStop(0, '#c08a54'); g.addColorStop(1, '#8a5a30');
+      ctx.fillStyle = g; ctx.fillRect(lx0, fy + 2, lx1 - lx0, WH - 2.5);
+      ctx.fillStyle = 'rgba(40,22,8,0.55)'; for (let x = lx0 + 3; x < lx1 - 1; x += 3.6) ctx.fillRect(x, fy + 2, 0.8, WH - 2.5);
+      ctx.fillStyle = '#3b4655'; ctx.fillRect(lx0, fy + 5, lx1 - lx0, 1.5); ctx.fillRect(lx0, y1 - 3.5, lx1 - lx0, 1.5);
+      ctx.fillStyle = '#ecc97e'; ctx.beginPath(); ctx.arc(lx1 - 3.4, fy + WH / 2 + 1.2, 1.2, 0, 7); ctx.fill();
     } else {
-      const g = ctx.createLinearGradient(0, fy, 0, y1); g.addColorStop(0, '#26303c'); g.addColorStop(1, '#8aa0b8');
-      ctx.fillStyle = g; ctx.fillRect(x0 + 3, fy, x1 - x0 - 6, WH);
-      ctx.fillStyle = '#a2724a'; ctx.beginPath(); ctx.moveTo(x0 + 3, fy); ctx.lineTo(x0 + 7.2, fy + 1.2); ctx.lineTo(x0 + 7.2, y1 + 3); ctx.lineTo(x0 + 3, y1); ctx.closePath(); ctx.fill();
+      const g = ctx.createLinearGradient(0, fy, 0, y1 + 2); g.addColorStop(0, '#1c2530'); g.addColorStop(1, '#7f95ad');
+      ctx.fillStyle = g; ctx.fillRect(lx0, fy + 2, lx1 - lx0, WH - 2.5);
+      ctx.fillStyle = '#a2724a'; ctx.beginPath(); ctx.moveTo(lx0, fy + 2); ctx.lineTo(lx0 + 3.4, fy + 3.2); ctx.lineTo(lx0 + 3.4, y1 + 2.5); ctx.lineTo(lx0, y1 + 0.5); ctx.closePath(); ctx.fill();
       ctx.strokeStyle = 'rgba(40,22,8,0.6)'; ctx.lineWidth = 0.6; ctx.stroke();
     }
+    for (const x of px) drawLog(ctx, x + hw / 2 + 0.6, y1 + 1.5, hw + 1.2, WH + 3.5, 1, 2);
+    ctx.fillStyle = '#6f4623'; ctx.fillRect(px[0] + 0.4, fy - 2.2, px[1] - px[0] + hw + 1.2, 2.2);          // lintel
+    ctx.fillStyle = 'rgba(248,251,253,0.95)'; ctx.fillRect(px[0] + 0.4, fy - 3.4, px[1] - px[0] + hw + 1.2, 1.4);
   } else {
-    // wall runs north-south: the gate faces the viewer edge-on; draw the south end + leaf slab
-    ctx.fillStyle = '#5a3817'; ctx.fillRect(x0, fy, x1 - x0, WH);
-    if (!open) { ctx.fillStyle = '#a36e3c'; ctx.fillRect(x0 + 2, fy + 1, x1 - x0 - 4, WH - 2); ctx.fillStyle = '#3b4655'; ctx.fillRect(x0 + 2, fy + 4, x1 - x0 - 4, 1.6); ctx.fillStyle = '#e6c27a'; ctx.beginPath(); ctx.arc(x1 - 5, fy + 9, 1.2, 0, 7); ctx.fill(); }
-    else { ctx.fillStyle = '#1c2530'; ctx.fillRect(x0 + 3, fy + 1, x1 - x0 - 6, WH - 1); ctx.fillStyle = '#a2724a'; ctx.fillRect(x1 - 6, fy + 1, 3, WH + 3); }
+    // north-south run: the gate faces the viewer edge-on
+    ctx.fillStyle = '#5a3817'; ctx.fillRect(x0, fy, x1 - x0, WH - 1);
+    if (!open) { ctx.fillStyle = '#a36e3c'; ctx.fillRect(x0 + 1.5, fy + 1, x1 - x0 - 3, WH - 3); ctx.fillStyle = '#3b4655'; ctx.fillRect(x0 + 1.5, fy + 4, x1 - x0 - 3, 1.5); ctx.fillStyle = '#ecc97e'; ctx.beginPath(); ctx.arc(x1 - 3.5, fy + 8, 1.1, 0, 7); ctx.fill(); }
+    else { ctx.fillStyle = '#1c2530'; ctx.fillRect(x0 + 2, fy + 1, x1 - x0 - 4, WH - 2); ctx.fillStyle = '#a2724a'; ctx.fillRect(x1 - 4, fy + 1, 2.4, WH + 2); }
+    ctx.fillStyle = 'rgba(248,251,253,0.95)'; ctx.fillRect(x0, fy - 1.4, x1 - x0, 1.8);
   }
   ctx.restore();
 }
 
 function drawStoneWall(ctx, mask, rng) {
+  ctx.translate(PADX, 0);
   const boxes = boxesFor(mask);
-  shadow(ctx, 16, TOP + 28, 17, 4.6, 0.3);
-  ctx.fillStyle = 'rgba(70,88,115,0.22)'; for (const b of boxes) ctx.fillRect(b[0] + 1, b[3] - 1, b[2] - b[0], 3);
-  ctx.save(); clipRects(ctx, boxes.map(frontRect));
-  ctx.fillStyle = '#5d6672'; ctx.fillRect(0, 0, 40, 70);
-  const courses = 3, ch = WH / courses;
-  for (let c = 0; c < 3 + 4; c++) {
-    const y = TOP + 32 - WH + (c - 3) * ch + (c >= 3 ? 0 : 0);
-    for (let k = 0; k < 4; k++) {
-      const bw = 8, off = (c % 2) * 4, x = k * bw - off;
-      const sh = 0.5 + 0.5 * Math.abs(Math.sin(c * 12.9 + k * 78.2));
-      ctx.fillStyle = `rgb(${Math.round(112 + sh * 26)},${Math.round(121 + sh * 24)},${Math.round(133 + sh * 22)})`;
-      ctx.fillRect(x + 0.5, y + 0.5, bw - 1, ch - 1);
-      ctx.fillStyle = 'rgba(255,255,255,0.16)'; ctx.fillRect(x + 0.5, y + 0.5, bw - 1, 1);
-      ctx.fillStyle = 'rgba(20,28,40,0.25)'; ctx.fillRect(x + 0.5, y + ch - 1.4, bw - 1, 0.9);
+  shadow(ctx, 16, TOP + 27, 17, 5, 0.3);
+  for (const b of boxes) { ctx.fillStyle = 'rgba(70,88,115,0.2)'; ctx.fillRect(b[0] + 1, b[3] - 1.5, b[2] - b[0], 4); }
+  // Stacked blocks. Rows (courses) run on a 4 px ground lattice like the logs; each block is ~8 px wide, alternate courses shifted.
+  const COURSE = WH / 3, SX = 8, SY = 4;
+  const rows = [];
+  for (let j = 0; j < 9; j++) rows.push(TOP + SY * j + 1.5);
+  for (const gy of rows) {
+    const j = Math.round((gy - TOP - 1.5) / SY);
+    // front face of the row = stacked courses, drawn only where this ground row lies inside the footprint
+    for (let k = -1; k <= 4; k++) {
+      const x0 = k * SX + ((j & 1) ? 4 : 0), cx = x0 + SX / 2;
+      if (!inBoxes(lattBoxes(mask), cx, gy - 1.5)) continue;
+      for (let c = 0; c < 3; c++) {
+        const hh = hash(k + 9 * c, j + 3), y1 = gy - c * COURSE, ytop = y1 - COURSE;
+        const sh = 0.5 + 0.5 * hh, jig = (hash(k, j + c * 7) - 0.5) * 1.2;
+        const cl = (a) => Math.round(a + sh * 26);
+        ctx.fillStyle = `rgb(${cl(104)},${cl(113)},${cl(126)})`;
+        roundRect(ctx, x0 + 0.4 + jig * 0.3, ytop + 0.2, SX - 0.8, COURSE - 0.2, 1.2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(x0 + 1.2, ytop + 0.4, SX - 2.4, 0.9);
+        ctx.fillStyle = 'rgba(20,28,40,0.3)'; ctx.fillRect(x0 + 0.8, y1 - 1.1, SX - 1.6, 0.9);
+        if (hh > 0.7) { ctx.fillStyle = 'rgba(30,40,54,0.3)'; ctx.beginPath(); ctx.ellipse(x0 + SX * 0.6, ytop + COURSE * 0.55, 1.2, 0.7, 0, 0, 7); ctx.fill(); }
+      }
+      // capstone on top of the stack, with a snow mound
+      const topY = gy - WH, capc = hash(k + 2, j);
+      ctx.fillStyle = `rgb(${Math.round(126 + capc * 26)},${Math.round(135 + capc * 24)},${Math.round(148 + capc * 20)})`;
+      ctx.beginPath(); ctx.ellipse(cx, topY, SX / 2 - 0.2, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(30,40,54,0.4)'; ctx.lineWidth = 0.5; ctx.stroke();
+      if (hash(k, j + 11) < 0.78) snowBlob(ctx, cx + (hash(k + 4, j) - 0.5) * 1.5, topY - 0.9, SX / 2 - 0.2 + hash(k, j) * 1.2, 2.2 + hash(k + 1, j) * 0.7, 0.97);
     }
   }
-  ctx.restore();
-  for (const b of boxes) for (let x = b[0] + 2; x < b[2]; x += 6) snowBlob(ctx, x + rng() * 2, b[3] + 0.2, 4.2, 1.8, 0.9);
-  ctx.save(); clipRects(ctx, boxes.map(topRect));
-  ctx.fillStyle = '#8c95a2'; ctx.fillRect(0, 0, 40, 70);
-  ctx.strokeStyle = 'rgba(40,50,64,0.5)'; ctx.lineWidth = 0.6;
-  for (let y = 0; y < 70; y += 8) { ctx.beginPath(); ctx.moveTo(0, y + 2); ctx.lineTo(40, y + 2); ctx.stroke(); }
-  for (let k = 0; k < 28; k++) { const x = rng() * 34 - 1, y = rng() * 70; snowBlob(ctx, x, y, 2.2 + rng() * 3.2, 1.3 + rng() * 1.2, 0.95); }
-  ctx.restore();
-  ctx.strokeStyle = 'rgba(235,242,250,0.4)'; ctx.lineWidth = 0.8;
-  for (const b of boxes) { ctx.beginPath(); ctx.moveTo(b[0], b[3] - WH + 0.4); ctx.lineTo(b[2], b[3] - WH + 0.4); ctx.stroke(); }
+  for (const b of boxes) for (let x = b[0] + 2; x < b[2] + 1; x += 5.3) snowBlob(ctx, x, b[3] + 1.7, 3.8, 1.6, 0.9);
+  ctx.translate(-PADX, 0);
 }
 
-registerSprite('wood_wall', { w: 32, h: TOP + 34, ax: 16, ay: TOP + 27, variants: 16, draw: (ctx, v, rng) => drawWoodWall(ctx, v, rng) });
-registerSprite('stone_wall', { w: 32, h: TOP + 34, ax: 16, ay: TOP + 27, variants: 16, draw: (ctx, v, rng) => drawStoneWall(ctx, v, rng) });
-registerSprite('door', { w: 32, h: TOP + 34, ax: 16, ay: TOP + 27, variants: 32, draw: (ctx, v, rng) => drawWoodWall(ctx, v & 15, rng, { door: true, open: v >= 16 }) });
+registerSprite('wood_wall', { w: 32 + 2 * PADX, h: TOP + 34, ax: 16 + PADX, ay: TOP + 27, variants: 16, draw: (ctx, v, rng) => drawWoodWall(ctx, v, rng) });
+registerSprite('stone_wall', { w: 32 + 2 * PADX, h: TOP + 34, ax: 16 + PADX, ay: TOP + 27, variants: 16, draw: (ctx, v, rng) => drawStoneWall(ctx, v, rng) });
+registerSprite('door', { w: 32 + 2 * PADX, h: TOP + 34, ax: 16 + PADX, ay: TOP + 27, variants: 32, draw: (ctx, v, rng) => drawWoodWall(ctx, v & 15, rng, { door: true, open: v >= 16 }) });
 
 // spike barricade: bundle of sharpened stakes (blocks, no connection)
 registerSprite('spike_barricade', { w: 40, h: 46, ax: 20, ay: 38, draw(ctx, v, rng) {

@@ -185,7 +185,20 @@ export default {
     const tx1 = Math.min(w - 1, Math.floor((cam.rx + cam.w) / TILE) + 1), ty1 = Math.min(game.world.h - 1, Math.floor((cam.ry + cam.h) / TILE) + 1);
     const eps = 0.5 / (game.view.dpr * cam.scale);
     for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
-      if (!B.enc.isRoomTile(tx, ty)) continue;
+      const room = (x, y) => B.enc.isRoomTile(x, y);
+      if (!room(tx, ty)) {   // floor also runs under the inner half of walls / fire / furniture that face the room, so no snow strip shows inside
+        const o = game.world.objectAt(tx, ty);
+        if (!o || !isStructure(o.type)) continue;
+        const X = tx * TILE, Y = ty * TILE, H = TILE / 2 + 6, h = TILE / 2 - 6, q = [];
+        const W = room(tx - 1, ty), E = room(tx + 1, ty), N = room(tx, ty - 1), S = room(tx, ty + 1);
+        if (W) q.push([X, Y, H, TILE]); if (E) q.push([X + h, Y, H, TILE]); if (N) q.push([X, Y, TILE, H]); if (S) q.push([X, Y + h, TILE, H]);
+        if (room(tx - 1, ty - 1)) q.push([X, Y, H, H]); if (room(tx + 1, ty - 1)) q.push([X + h, Y, H, H]);
+        if (room(tx - 1, ty + 1)) q.push([X, Y + h, H, H]); if (room(tx + 1, ty + 1)) q.push([X + h, Y + h, H, H]);
+        if (!q.length) continue;
+        ctx.save(); ctx.beginPath(); for (const r of q) ctx.rect(...r); ctx.clip();
+        ctx.drawImage(getSprite('room_floor', (tx * 7 + ty * 13) % 3).canvas, X, Y, TILE + eps, TILE + eps);
+        ctx.restore(); continue;
+      }
       const s = getSprite('room_floor', (tx * 7 + ty * 13) % 3);
       ctx.drawImage(s.canvas, tx * TILE, ty * TILE, TILE + eps, TILE + eps);
     }
