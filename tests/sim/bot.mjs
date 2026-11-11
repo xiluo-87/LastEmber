@@ -63,6 +63,7 @@ export function createBot(game, profileName = 'competent', opts = {}) {
     const t = game.state.stats.playSeconds;
     bot.lastThinkT = t;
     if (game.sleep?.active) { bot.status = 'sleep'; core.stop(); goals.sleepWatch(); return; }
+    if (game.building?.mode === 'dismantle' && (bot.plan.step !== 'stone' || bot.status !== 'projects')) core.endDismantle();     // never leave build mode on (it replaces the Action target)
     for (const rule of goals.rules) {
       let r;
       try { r = rule(); } catch (e) { bot.errors = (bot.errors || 0) + 1; bot.lastError = e; if (bot.errors < 4) console.error('bot error', rule.name, e.stack); r = false; }

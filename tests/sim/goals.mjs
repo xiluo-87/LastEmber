@@ -103,7 +103,12 @@ export function createGoals(bot) {
     if (item === 'flint' && !core.hasTool('pickaxe')) item = 'stone';
     const types = (SRC[item] || (() => []))();
     const h = home(), range = opts.range ?? prof.maxRange, tl = T();
-    const o = core.nearest(types, (x) => {
+    const cur = bot.mem.tgt;
+    let o = null;
+    if (cur && cur.item === item && !cur.o.depleted && W().objectAt(cur.o.tx, cur.o.ty) === cur.o && !core.isBlockedObj(cur.o)) {
+      if (game.time - cur.t0 > 40) { core.blockObj(cur.o, 90); bot.mem.tgt = null; } else o = cur.o;
+    }
+    if (!o) o = core.nearest(types, (x) => {
       if (!opts.allowDen && nearDen(x)) return false;
       const dh = tileDist(x.tx, x.ty, h.cx, h.cy);
       if (dh > range) return false;
@@ -112,6 +117,7 @@ export function createGoals(bot) {
       return true;
     });
     if (!o) { bot.noSource = want; return false; }
+    if (!bot.mem.tgt || bot.mem.tgt.o !== o) bot.mem.tgt = { item, o, t0: game.time };
     bot.noSource = null;
     holdFor(o);
     core.work(o, { press: o.type.startsWith('loose') });
@@ -310,6 +316,16 @@ export function createGoals(bot) {
     return false;
   }
 
+  /** time-box a step: at most `secs` game-seconds per day (keeps one hungry-for-hides loop from starving the base projects) */
+  function budget(name, secs, fn) {
+    const b = (bot.mem.budget ||= {}), d = dayNo(), e = (b[name] ||= { day: d, used: 0 });
+    if (e.day !== d) { e.day = d; e.used = 0; }
+    if (e.used >= secs) return false;
+    const r = fn();
+    if (r) e.used += 0.1 * (S().time.speed || 1);
+    return r;
+  }
+
   rule('projects', () => {
     const h = home();
     const steps = [
@@ -346,21 +362,21 @@ export function createGoals(bot) {
         if (core.hasTool('bow') && !has('arrow')) { if (has('flint')) return craftAt('arrow', { stick: 1, flint: 1 }); if (cnt('stick') < 1) return fetch('stick'); if (fetch('flint', { range: prof.maxRange })) return true; }
         return huntStep();
       }],
-      ['hide2', () => prof.bedroll && nStruct('bedroll') === 0 && !has('hide', 2) && prof.hunt && huntStep()],
+      ['hide2', () => prof.bedroll && nStruct('bedroll') === 0 && !has('hide', 2) && prof.hunt && budget('hide2', 150, huntStep)],
       ['snares', () => snareProject()],
       ['bedroll', () => prof.bedroll && nStruct('bedroll') === 0 && has('hide', 2) && (cnt('fiber') < 3 ? fetch('fiber') : buildProj('bedroll', { fiber: 3, hide: 2 }))],
       ['wear', () => { for (const id of ['fur_coat', 'fur_boots', 'fur_hat']) { const w = S().inventory.clothing.some((c) => c && c.id === id); if (!w && has(id)) { core.wear(id); return true; } } return false; }],
       ['coat', () => prof.clothing && !coatWorn('fur_coat') && has('hide', 5) && (cnt('rope') >= 2 ? craftAt('fur_coat', { hide: 5, rope: 2 }) : ropeFor(2))],
       ['boots', () => prof.clothing && !coatWorn('fur_boots') && has('hide', 3) && (cnt('rope') >= 1 ? craftAt('fur_boots', { hide: 3, rope: 1 }) : ropeFor(1))],
       ['hat', () => prof.clothing && !coatWorn('fur_hat') && has('hide', 2) && (cnt('rope') >= 1 ? craftAt('fur_hat', { hide: 2, rope: 1 }) : ropeFor(1))],
-      ['woodstock', () => cnt('wood') < prof.stockpileWood && fetch('wood')],
-      ['sticks', () => cnt('stick') < 6 && fetch('stick')],
       ['stone', () => stoneUpgrade()],
       ['spikes', () => spikeProject()],
+      ['woodstock', () => cnt('wood') < prof.stockpileWood && fetch('wood')],
+      ['sticks', () => cnt('stick') < 6 && fetch('stick')],
       ['wreck', () => prof.expeditions && dayNo() >= (prof.wreckDay ?? 3) && wreckProject()],
       ['iron', () => prof.iron && dayNo() >= (prof.ironDay ?? 4) && ironProject()],
       ['tower', () => prof.endgame && towerProject()],
-      ['hides', () => prof.clothing && (!coatWorn('fur_coat') || !coatWorn('fur_boots') || !coatWorn('fur_hat')) && cnt('hide') < 10 && huntStep()],
+      ['hides', () => prof.clothing && (!coatWorn('fur_coat') || !coatWorn('fur_boots') || !coatWorn('fur_hat')) && cnt('hide') < 10 && budget('hides', 150, huntStep)],
     ];
     for (const [name, fn] of steps) if (fn()) { bot.plan.step = name; return true; }
     bot.plan.step = 'none';
@@ -412,8 +428,8 @@ export function createGoals(bot) {
       const o = W().objectAt(pend.tx, pend.ty);
       if (o && o.type === 'stone_wall') { bot.mem.upg = null; return false; }
       if (o && o.type === 'wood_wall') { if (!daySafe(25)) { core.endDismantle(); bot.mem.upg = null; return false; } core.hold('hands'); core.dismantle(o); return true; }
-      if (!haveAll({ stone: 3, wood: 1 })) { if (cnt('wood') < 1) return fetch('wood'); return fetch('stone'); }
       core.endDismantle();
+      if (!haveAll({ stone: 3, wood: 1 })) { if (cnt('wood') < 1) return fetch('wood'); return fetch('stone'); }
       const r = build('stone_wall', pend.tx, pend.ty); if (r === 'fail') bot.mem.upg = null; return true;
     }
     if (!walls.length) return false;
