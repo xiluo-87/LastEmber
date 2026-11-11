@@ -161,6 +161,8 @@ export function createGoals(bot) {
   /** One step of hunting (carcass first, then prey). -> true if acted */
   function huntStep() {
     const h = home(), tl = T(), m = (bot.mem.skip ||= {});
+    const ar = core.ofType('dropped_item').filter((o) => o.stack && o.stack.id === 'arrow' && !core.isBlockedObj(o) && core.distTilesTo(o.tx, o.ty) < 12)[0];
+    if (ar && !core.hostiles(8).length) { const r = core.work(ar, { press: true }); if (r === 'unreachable' || r === 'gone') core.blockObj(ar, 60); return true; }
     const k = core.carcass(30);
     if (k && tileDist(k.x / TILE, k.y / TILE, h.cx, h.cy) < prof.maxRange + 6) return butcher(k);
     if (!tl.isNight && prof.retreatDusk && tl.toNight < 70) return false;
@@ -171,8 +173,9 @@ export function createGoals(bot) {
     if (st.id !== c.id) { st.id = c.id; st.t0 = game.time; }
     if (game.time - st.t0 > 28) { m[c.id] = game.time + 200; st.id = -1; return true; }
     const bow = core.hasTool('bow') && has('arrow');
+    if (!bow && P().hunger > 30) return false;                        // chasing rabbits with a spear is hopeless: get arrows first
     core.hold(bow ? 'bow' : core.hasTool('spear') ? 'spear' : 'hands');
-    if (bow) core.shoot(c, 5.5); else core.attack(c, 1.7);
+    if (bow) core.shoot(c, 6.3); else core.attack(c, 1.7);
     return true;
   }
   function atStation(st, r = 1.8) {
@@ -333,18 +336,31 @@ export function createGoals(bot) {
       ['workbench', () => prof.workbench && !nStruct('workbench') && buildProj('workbench', { wood: 4, stone: 2 })],
       ['walls', () => prof.walls && wallsProject()],
       ['spear', () => !has('spear') && makeTool('spear', { stick: 2, flint: 1, fiber: 1 })],
+      ['bow', () => bowProject()],
       ['bandage', () => prof.hunt && cnt('bandage') < 2 && (has('hide') || cnt('stick') > 100) && has('fiber') && core.canCraft('bandage_hide') && core.craft('bandage_hide')],
       ['cookcarry', () => { const f = homeFire(); if (!f || !f.lit || !(has('raw_meat') || has('raw_fish'))) return false; if (!walkToFire(f, 2.0)) return true; if (core.canCraft('cooked_meat') && has('raw_meat')) core.craft('cooked_meat'); else if (has('raw_fish')) core.craft('cooked_fish'); return true; }],
-      ['food', () => prof.hunt && foodStock() < prof.foodWant && (cnt('berries') < 6 && core.nearest(['berry_bush'], (o) => !nearDen(o) && tileDist(o.tx, o.ty, home().cx, home().cy) < prof.maxRange) && T().toNight > 80 ? fetch('berries') : huntStep())],
+      ['food', () => {
+        if (!prof.hunt || foodStock() >= prof.foodWant) return false;
+        const h = home();
+        if (cnt('berries') < 6 && T().toNight > 80 && core.nearest(['berry_bush'], (o) => !nearDen(o) && tileDist(o.tx, o.ty, h.cx, h.cy) < prof.maxRange)) return fetch('berries');
+        if (core.hasTool('bow') && !has('arrow')) { if (has('flint')) return craftAt('arrow', { stick: 1, flint: 1 }); if (cnt('stick') < 1) return fetch('stick'); if (fetch('flint', { range: prof.maxRange })) return true; }
+        return huntStep();
+      }],
       ['hide2', () => prof.bedroll && nStruct('bedroll') === 0 && !has('hide', 2) && prof.hunt && huntStep()],
+      ['snares', () => snareProject()],
       ['bedroll', () => prof.bedroll && nStruct('bedroll') === 0 && has('hide', 2) && (cnt('fiber') < 3 ? fetch('fiber') : buildProj('bedroll', { fiber: 3, hide: 2 }))],
       ['wear', () => { for (const id of ['fur_coat', 'fur_boots', 'fur_hat']) { const w = S().inventory.clothing.some((c) => c && c.id === id); if (!w && has(id)) { core.wear(id); return true; } } return false; }],
       ['coat', () => prof.clothing && !coatWorn('fur_coat') && has('hide', 5) && (cnt('rope') >= 2 ? craftAt('fur_coat', { hide: 5, rope: 2 }) : ropeFor(2))],
       ['boots', () => prof.clothing && !coatWorn('fur_boots') && has('hide', 3) && (cnt('rope') >= 1 ? craftAt('fur_boots', { hide: 3, rope: 1 }) : ropeFor(1))],
       ['hat', () => prof.clothing && !coatWorn('fur_hat') && has('hide', 2) && (cnt('rope') >= 1 ? craftAt('fur_hat', { hide: 2, rope: 1 }) : ropeFor(1))],
-      ['hides', () => prof.clothing && (!coatWorn('fur_coat') || !coatWorn('fur_boots') || !coatWorn('fur_hat')) && cnt('hide') < 10 && huntStep()],
       ['woodstock', () => cnt('wood') < prof.stockpileWood && fetch('wood')],
       ['sticks', () => cnt('stick') < 6 && fetch('stick')],
+      ['stone', () => stoneUpgrade()],
+      ['spikes', () => spikeProject()],
+      ['wreck', () => prof.expeditions && dayNo() >= (prof.wreckDay ?? 3) && wreckProject()],
+      ['iron', () => prof.iron && dayNo() >= (prof.ironDay ?? 4) && ironProject()],
+      ['tower', () => prof.endgame && towerProject()],
+      ['hides', () => prof.clothing && (!coatWorn('fur_coat') || !coatWorn('fur_boots') || !coatWorn('fur_hat')) && cnt('hide') < 10 && huntStep()],
     ];
     for (const [name, fn] of steps) if (fn()) { bot.plan.step = name; return true; }
     bot.plan.step = 'none';
@@ -352,6 +368,178 @@ export function createGoals(bot) {
   });
 
   function coatWorn(id) { const I = S().inventory; return I.clothing.some((c) => c && c.id === id) || ['bag', 'hotbar'].some((a) => I[a].some((c) => c && c.id === id)); }
+
+
+  // ------------------------------------------------------------ late game: repair, stone, spikes, iron, wreckage, tower
+  const STONE_RING = () => RING.map(([dx, dy]) => [home().cx + dx, home().cy + dy]);
+  const SPIKES = [];
+  for (let dx = -2; dx <= 2; dx++) SPIKES.push([dx, -3]);
+  for (let dy = -2; dy <= 2; dy++) { SPIKES.push([-3, dy]); SPIKES.push([3, dy]); }
+  SPIKES.push([-2, 3], [2, 3]);
+  const FREE_FURNACE = [[3, 0], [-3, 0], [3, 1], [-3, 1]];
+  const hpFrac = (o) => (o.hp ?? STRUCTURES[o.type].hp) / STRUCTURES[o.type].hp;
+  const dayNo = () => S().time.day;
+  const daySafe = (secs) => T().toNight > secs && !T().isNight;
+
+  rule('repair', () => {
+    if (!prof.walls) return false;
+    const h = home(), t = T();
+    if (!t.isNight && t.toNight < 20) return false;
+    let worst = null;
+    for (const o of game.building.listAll()) {
+      if (!['wood_wall', 'stone_wall', 'door', 'spike_barricade', 'workbench', 'radio_tower'].includes(o.type)) continue;
+      if (tileDist(o.tx, o.ty, h.cx, h.cy) > 8 || hpFrac(o) > 0.6) continue;
+      const mat = { wood_wall: 'wood', stone_wall: 'stone', door: 'wood', spike_barricade: 'wood', workbench: 'wood', radio_tower: 'iron_ingot' }[o.type];
+      if (!has(mat)) continue;
+      if (!worst || hpFrac(o) < hpFrac(worst)) worst = o;
+    }
+    if (!worst) return false;
+    if (core.hostiles(5).length && !sheltered()) return false;
+    if (core.distTilesTo(worst.tx, worst.ty) > 1.9) {
+      nav.goTo(`rep:${worst.tx},${worst.ty}`, (x, y) => walkable(x, y) && tileDist(x, y, worst.tx, worst.ty) <= 1.5 && tileDist(x, y, worst.tx, worst.ty) >= 1);
+      return true;
+    }
+    nav.stop();
+    if (game.time >= (bot.mem.repT || 0)) { bot.mem.repT = game.time + 0.45; game.structures.repair(worst); bot.counters.repairs = (bot.counters.repairs || 0) + 1; }
+    return true;
+  });
+
+  function stoneUpgrade() {
+    if (!prof.stone || dayNo() < 3) return false;
+    const walls = STONE_RING().map(([x, y]) => W().objectAt(x, y)).filter((o) => o && o.type === 'wood_wall');
+    const pend = bot.mem.upg;
+    if (pend) {                                          // wall dismantled: put the stone one in right away
+      const o = W().objectAt(pend.tx, pend.ty);
+      if (o && o.type === 'stone_wall') { bot.mem.upg = null; return false; }
+      if (o && o.type === 'wood_wall') { if (!daySafe(25)) { core.endDismantle(); bot.mem.upg = null; return false; } core.hold('hands'); core.dismantle(o); return true; }
+      if (!haveAll({ stone: 3, wood: 1 })) { if (cnt('wood') < 1) return fetch('wood'); return fetch('stone'); }
+      core.endDismantle();
+      const r = build('stone_wall', pend.tx, pend.ty); if (r === 'fail') bot.mem.upg = null; return true;
+    }
+    if (!walls.length) return false;
+    if (!daySafe(90)) return false;
+    if (!haveAll({ stone: 3, wood: 1 })) return cnt('wood') < 1 ? fetch('wood') : fetch('stone');
+    const o = walls.sort((a, b) => core.distTilesTo(a.tx, a.ty) - core.distTilesTo(b.tx, b.ty))[0];
+    bot.mem.upg = { tx: o.tx, ty: o.ty };
+    return true;
+  }
+  function spikeProject() {
+    if (!prof.spikes || dayNo() < 4 || !roomClosed()) return false;
+    const h = home();
+    const todo = SPIKES.map(([dx, dy]) => [h.cx + dx, h.cy + dy]).filter(([x, y]) => !W().objectAt(x, y) && walkable(x, y));
+    if (!todo.length) return false;
+    if (!daySafe(70)) return false;
+    if (!haveAll({ stick: 3, wood: 1 })) return cnt('wood') < 1 ? fetch('wood') : fetch('stick');
+    todo.sort((a, b) => core.distTilesTo(a[0], a[1]) - core.distTilesTo(b[0], b[1]));
+    const r = build('spike_barricade', todo[0][0], todo[0][1]);
+    return r !== 'fail' || false;
+  }
+  const IRON_NEED = () => (cnt('iron_ingot') + (has('iron_spear') ? 2 : 0) + (has('iron_axe') ? 2 : 0));
+  function ingotsWanted() {
+    let n = 6;                                              // tower
+    if (!core.hasTool('spear') || !coatWorn('iron_spear')) n += 2;
+    if (!coatWorn('iron_axe')) n += 2;
+    return n;
+  }
+  function furnaceObj() { return firstStruct('furnace'); }
+  function ironProject() {
+    if (!prof.iron || bot.mem.noIron) return false;
+    if (game.building.listAll().some((o) => o.type === 'radio_tower')) return false;
+    const h = home();
+    const want = ingotsWanted() - (has('iron_ingot') ? cnt('iron_ingot') : 0) + (has('radio_antenna') ? 0 : 0);
+    const haveIngots = cnt('iron_ingot');
+    const toolsDone = coatWorn('iron_spear') && coatWorn('iron_axe');
+    // 1 craft tools with ingots in hand
+    if (!toolsDone && haveIngots >= 2 && !coatWorn('iron_spear')) return craftAt('iron_spear', { iron_ingot: 2, stick: 2, rope: 1 }) || ropeFor(1);
+    if (!toolsDone && haveIngots >= 2 && !coatWorn('iron_axe') && coatWorn('iron_spear')) return craftAt('iron_axe', { iron_ingot: 2, stick: 2, rope: 1 }) || ropeFor(1);
+    const ingotsTotal = haveIngots;
+    const needIngots = (coatWorn('iron_spear') ? 0 : 2) + (coatWorn('iron_axe') ? 0 : 2) + 6;
+    if (ingotsTotal >= needIngots - ((coatWorn('iron_spear') ? 0 : 2) + (coatWorn('iron_axe') ? 0 : 2)) && toolsDone) return false;   // enough for the tower
+    if (ingotsTotal >= needIngots) return false;
+    // 2 smelt
+    const fur = furnaceObj();
+    const ore = cnt('iron_ore'), coal = cnt('coal');
+    if (fur && ore >= 2 && coal >= 1) {
+      if (!fur.lit) { if (fur.fuel <= 0) { if (has('wood')) { if (!walkToFire(fur, 1.8)) return true; game.structures.addFuel(fur, 'wood'); } else return fetch('wood'); } if (!walkToFire(fur, 1.8)) return true; game.structures.light(fur); return true; }
+      if (fur.fuel < 120 && has('wood')) { if (!walkToFire(fur, 1.8)) return true; game.structures.addFuel(fur, 'wood'); return true; }
+      if (!game.stationQuery().includes('furnace')) { walkToFire(fur, 2.2); return true; }
+      core.stop(); core.craft('iron_ingot'); return true;
+    }
+    // 3 build furnace (needs 8 stone 2 coal)
+    if (!fur && coal >= 2 && cnt('stone') >= 8 && roomClosed() !== undefined) {
+      for (const [dx, dy] of FREE_FURNACE) { const x = h.cx + dx, y = h.cy + dy; if (!W().objectAt(x, y) || trivial(W().objectAt(x, y))) { const r = build('furnace', x, y); if (r !== 'fail') return true; } }
+    }
+    // 4 mine: need coal first for furnace, then ore/coal for ingots
+    if (!daySafe(110)) return false;
+    if (!core.hasTool('pickaxe')) return makeTool('stone_pickaxe', { stick: 2, stone: 3, fiber: 1 });
+    if (!fur && cnt('stone') < 8) return fetch('stone');
+    const needCoal = (fur ? 0 : 2) + Math.max(0, Math.ceil(needIngots - haveIngots)) + 4;
+    const needOre = Math.max(0, (needIngots - haveIngots) * 2);
+    const sel = ore < needOre && (cnt('iron_ore') <= cnt('coal') * 2 || coal >= needCoal) ? 'iron_ore' : coal < needCoal ? 'coal' : null;
+    if (!sel) return false;
+    if (!(core.hasTool('spear') || core.hasTool('bow'))) return false;
+    if (P().health < 55) return false;
+    const r = fetch(sel, { allowDen: true, range: 99 });
+    if (!r) { bot.mem.ironMiss = (bot.mem.ironMiss || 0) + 1; if (bot.mem.ironMiss > 200) bot.mem.noIron = true; }
+    return r;
+  }
+  function wreckProject() {
+    if (!prof.expeditions) return false;
+    if (core.has('radio_antenna') && core.has('radio_battery') && core.has('radio_circuit')) return false;
+    const taken = S().flags.partsFound || {};
+    const wr = core.ofType('wreckage').filter((o) => !o.depleted && !core.isBlockedObj(o) && !(o.partTaken));
+    if (!wr.length) return false;
+    const me = P();
+    wr.sort((a, b) => core.distTilesTo(a.tx, a.ty) - core.distTilesTo(b.tx, b.ty));
+    const o = wr[0], d = tileDist(o.tx, o.ty, home().cx, home().cy);
+    if (!daySafe(d / 2.4 * 2 + 50)) return false;
+    if (P().health < 60) return false;
+    void taken; void me;
+    return core.work(o, { press: true, sprint: true }) !== 'gone';
+  }
+  function towerProject() {
+    const has3 = has('radio_antenna') && has('radio_battery') && has('radio_circuit');
+    const tower = game.building.listAll().find((o) => o.type === 'radio_tower');
+    if (tower) {
+      const eg = S().endgame;
+      if (!eg.transmitting && tower) { game.endgame.setTransmitting(true); }
+      return false;
+    }
+    if (!has3 || cnt('iron_ingot') < 6) return false;
+    if (cnt('wood') < 6) return fetch('wood');
+    if (cnt('rope') < 2) return ropeFor(2);
+    const h = home();
+    return build('radio_tower', h.cx, h.cy - 1) !== 'fail';
+  }
+
+
+  // ------------------------------------------------------------ passive food: snares; ranged: bow
+  const SNARE_N = 4;
+  function snareProject() {
+    if (!prof.snares) return false;
+    const snares = game.building.list('snare'), h = home();
+    for (const o of snares) if (o.caught && !core.isBlockedObj(o)) { const r = core.work(o, { interact: true }); if (r === 'unreachable' || r === 'gone') core.blockObj(o, 60); return true; }
+    let n = 0; for (const _ of snares) n++;
+    if (n >= SNARE_N || !daySafe(100)) return false;
+    if (cnt('stick') < 2) return fetch('stick');
+    if (cnt('rope') < 1) return ropeFor(1);
+    // pick a spot ring 8..11 from home, spread by index
+    const base = n * (Math.PI / 2) + 0.4;
+    for (let k = 0; k < 20; k++) {
+      const a = base + k * 0.25 * (k % 2 ? 1 : -1), d = 8 + (k % 4);
+      const tx = Math.round(h.cx + Math.cos(a) * d), ty = Math.round(h.cy + Math.sin(a) * d);
+      if (!walkable(tx, ty) || W().objectAt(tx, ty) || W().terrainAt(tx, ty) === 'ice' || nearDen({ tx, ty }, 14)) continue;
+      return build('snare', tx, ty) !== 'fail';
+    }
+    return false;
+  }
+  function bowProject() {
+    if (!prof.hunt || !core.hasTool('spear')) return false;
+    if (!core.hasTool('bow')) return nStruct('workbench') > 0 && craftAt('bow', { stick: 3, rope: 2 }) || (cnt('rope') < 2 && nStruct('workbench') > 0 ? ropeFor(2) : false);
+    if (cnt('arrow') < 8 && has('flint')) return craftAt('arrow', { stick: 1, flint: 1 });
+    if (cnt('arrow') < 4 && !has('flint') && daySafe(80)) return fetch('flint');
+    return false;
+  }
 
   function sleepWatch() { const p = P(); if (p.thirst < 12 || p.hunger < 12) game.sleep.wake('manual'); }
   return { rules, sleepWatch, home, homeFire, fetch, build };
