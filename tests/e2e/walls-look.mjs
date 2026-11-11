@@ -21,6 +21,7 @@ for (const view of ['portrait']) {
     put('door', cx, cy + 3);
     put('wood_wall', cx - 6, cy - 6); put('wood_wall', cx - 6, cy - 5); put('wood_wall', cx - 5, cy - 6); // loose corner piece
     B.cancel();
+    { const f = g.world.objectAt(cx, cy); g.structures.addFuel(f, 'wood'); g.structures.addFuel(f, 'wood'); g.structures.addFuel(f, 'wood'); g.structures.light(f); }
     g.renderer.snapCamera?.();
     return { cx, cy };
   });
@@ -33,7 +34,7 @@ for (const view of ['portrait']) {
   // close-up: zoom the camera on the NE corner (stone/wood join) and the door
   await P.state(() => { const r = __game.renderer; r.zoomOverride = 3; });
   await sleep(100);
-  await P.state(([cx, cy]) => { const g = __game; g.debug.setTime(1, 345); g.state.player.warmth = 80; const c = g.world.tileCenter(cx, cy + 5); Object.assign(g.state.player, { x: c.x, y: c.y }); }, [cx, cy]);
+  await P.state(([cx, cy]) => { const g = __game; g.debug.setTime(1, 345); g.state.player.warmth = 80; const c = g.world.tileCenter(cx + 1, cy + 3); Object.assign(g.state.player, { x: c.x, y: c.y }); }, [cx, cy]);
   await sleep(1200);
   await P.shot(`walls-${tag}-night.png`);
   console.log(P.errors);

@@ -24,10 +24,7 @@ function radialSprite(key, stops) {
 }
 const cutSprite = () => radialSprite('cut', [[0, 'rgba(0,0,0,1)'], [0.45, 'rgba(0,0,0,0.88)'], [0.75, 'rgba(0,0,0,0.45)'], [1, 'rgba(0,0,0,0)']]);
 const glowSprite = (c) => radialSprite(`glow${c}`, [[0, `rgba(${c},1)`], [1, `rgba(${c},0)`]]);
-function warmSprite(k2) {
-  const q = Math.round(k2 * 24) / 24, mix = (v) => Math.round(255 - (255 - v) * q);
-  return radialSprite(`warm${q}`, [[0, `rgb(${mix(255)},${mix(190)},${mix(120)})`], [0.55, `rgb(${mix(255)},${mix(205)},${mix(150)})`], [1, 'rgb(255,255,255)']]);
-}
+const warmSprite = () => radialSprite('warmOverlay', [[0, 'rgba(255,150,60,1)'], [0.55, 'rgba(255,160,70,0.8)'], [1, 'rgba(255,170,80,0)']]);
 
 export function createLighting() {
   const dark = makeCanvas(2, 2);
@@ -60,31 +57,21 @@ export function createLighting() {
         dctx.globalAlpha = Math.min(1, l.intensity ?? 1);
         dctx.drawImage(cutSprite(), x - r, y - r, r * 2, r * 2);
       }
+      // warm glow + warm tint, painted INTO the half-res layer with plain source-over (additive / multiply passes over the full-res
+      // canvas were the single most expensive thing on phones): lit snow reads orange, and the whole lot is one blit.
+      dctx.globalCompositeOperation = 'source-over';
+      for (const l of lights) {
+        if (l.glow === false && !l.warm) continue;
+        const x = (l.x - cam.x) * s * k, y = (l.y - cam.y) * s * k;
+        const r = l.radius * 32 * s * k * flicker(l, time);
+        if (x + r < 0 || y + r < 0 || x - r > w || y - r > h) continue;
+        if (l.glow !== false) { dctx.globalAlpha = 0.2 * darkness * (l.glowIntensity ?? 1); dctx.drawImage(glowSprite(l.color || '255,160,70'), x - r * 0.9, y - r * 0.9, r * 1.8, r * 1.8); }
+        if (l.warm) { dctx.globalAlpha = 0.5 * Math.min(1, darkness * 1.4) * l.warm; dctx.drawImage(warmSprite(), x - r, y - r, r * 2, r * 2); }
+      }
       dctx.globalAlpha = 1;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.imageSmoothingEnabled = true;
       ctx.drawImage(dark, 0, 0, view.w * view.dpr, view.h * view.dpr);
-      // warm glow
-      ctx.globalCompositeOperation = 'lighter';
-      for (const l of lights) {
-        if (l.glow === false) continue;
-        const x = (l.x - cam.x) * s * view.dpr, y = (l.y - cam.y) * s * view.dpr;
-        const r = l.radius * 32 * s * view.dpr * flicker(l, time) * 0.9;
-        if (x + r < 0 || y + r < 0 || x - r > view.w * view.dpr || y - r > view.h * view.dpr) continue;
-        ctx.globalAlpha = 0.2 * darkness * (l.glowIntensity ?? 1);
-        ctx.drawImage(glowSprite(l.color || '255,160,70'), x - r, y - r, r * 2, r * 2);
-      }
-      ctx.globalAlpha = 1;
-      // warm multiply tint: lights with `warm` (campfire, furnace, torch post) turn the lit snow orange instead of white
-      ctx.globalCompositeOperation = 'multiply';
-      for (const l of lights) {
-        if (!l.warm) continue;
-        const x = (l.x - cam.x) * s * view.dpr, y = (l.y - cam.y) * s * view.dpr;
-        const r = l.radius * 32 * s * view.dpr * flicker(l, time);
-        if (x + r < 0 || y + r < 0 || x - r > view.w * view.dpr || y - r > view.h * view.dpr) continue;
-        ctx.drawImage(warmSprite(Math.min(1, darkness * 1.4) * l.warm), x - r, y - r, r * 2, r * 2);
-      }
-      ctx.globalCompositeOperation = 'source-over';
     },
   };
 }

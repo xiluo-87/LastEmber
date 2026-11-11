@@ -81,7 +81,7 @@ export default {
     if (wx.snow <= 0.01 && wx.bliz <= 0.01) return;
     if (!particles) particles = createParticles();
     const light = game.state.time.light;
-    particles.update(game.mode === 'playing' && !game.paused ? dt : 0, w, h, wx.snow, wx.bliz);
+    particles.update(game.mode === 'playing' && !game.paused ? dt : 0, w, h, wx.snow, wx.bliz, game.renderer?.fxScale?.() ?? 1);
     particles.draw(ctx, light < 0.4);
     drawFog(ctx, game, w, h, wx.bliz, light, now);
   },

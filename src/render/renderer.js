@@ -11,7 +11,7 @@ import { TILE, CAMERA, LIGHT } from '../data/balance.js';
 import { TERRAIN, TERRAIN_BY_CODE } from '../data/terrain.js';
 import { hash2, fbm } from '../rng.js';
 import './sprites/index.js';
-import { getSprite, drawSprite, getOutline, setSpriteScale } from './sprites.js';
+import { getSprite, drawSprite, getOutline, setSpriteScale, makeCanvas } from './sprites.js';
 import { drawObject, spriteKeyFor, FLAT_OBJECTS } from './objects.js';
 import { createLighting } from './lighting.js';
 
@@ -59,13 +59,15 @@ export function createRenderer(game, canvas) {
     view.scale = Math.max(CAMERA.minScale, Math.min(CAMERA.maxScale, short / (CAMERA.targetTilesShortSide * TILE)));
     cam.scale = view.scale; cam.w = w / view.scale; cam.h = h / view.scale;
     setSpriteScale(dpr * view.scale);
-    tileSprites = null;
+    tileSprites = null; chunks.clear();
     cam.snap = true;
   }
 
   function prepare(world) {
     if (prepared === world) return;
-    prepared = world;
+    prepared = world; chunks.clear();
+    const setT = world.setTerrain;
+    world.setTerrain = (tx, ty, id) => { setT(tx, ty, id); chunks.clear(); };
     variants = new Uint8Array(world.w * world.h); shade = new Uint8Array(world.w * world.h);
     const seed = game.state?.seed ?? 1;
     for (let y = 0; y < world.h; y++) for (let x = 0; x < world.w; x++) {
@@ -93,26 +95,70 @@ export function createRenderer(game, canvas) {
     cam.rx = Math.round(cam.x * ds) / ds; cam.ry = Math.round(cam.y * ds) / ds;
   }
 
+  // Terrain is static, so it is baked into CHUNK x CHUNK tile canvases at the current device scale and stamped with one drawImage per
+  // chunk (a phone screen touches ~15) instead of ~800 tile / shade / edge draws per frame. Chunks build lazily (the ones around the
+  // camera first, one extra neighbour per frame) and are dropped on resize / terrain edits.
+  const CHUNK = 8, CHUNK_PX = CHUNK * TILE, CHUNK_BYTES = 64e6;
+  const chunks = new Map();   // key -> { canvas, used }
+  let chunkTick = 0;
+  function bakeTile(c2, world, tx, ty, eps) {
+    const code = world.terrainCode(tx, ty), i = ty * world.w + tx, list = tileSprites[code];
+    const inb = world.inBounds(tx, ty), s = list[(inb ? variants[i] : 0) % list.length];
+    const x = tx * TILE, y = ty * TILE;
+    c2.drawImage(s.canvas, x, y, TILE + eps, TILE + eps);
+    if (!inb) return;
+    const sh = shade[i];
+    if (sh && code <= 1) { c2.fillStyle = SHADE[sh]; c2.fillRect(x, y, TILE + eps, TILE + eps); }
+    if (code === TERRAIN.cliff.code) return;
+    for (const [side, dx, dy] of SIDE_LIST) {
+      const nc = world.terrainCode(tx + dx, ty + dy);
+      if (nc !== code && PRIO[nc] > PRIO[code]) drawSprite(c2, `edge:${TERRAIN_BY_CODE[nc].id}:${side}`, 0, x, y);
+    }
+  }
+  function getChunk(world, cx, cy, build = true) {
+    const key = cx * 4096 + cy;
+    let ch = chunks.get(key);
+    if (!ch) {
+      if (!build) return null;
+      if (!tileSprites) buildTileSprites();
+      const ds = view.dpr * cam.scale, size = Math.ceil(CHUNK_PX * ds) + 2;
+      const canvas = makeCanvas(size, size), c2 = canvas.getContext('2d');
+      c2.setTransform(ds, 0, 0, ds, -cx * CHUNK_PX * ds, -cy * CHUNK_PX * ds);
+      const eps = 0.7 / ds;
+      for (let ty = cy * CHUNK; ty < (cy + 1) * CHUNK; ty++) for (let tx = cx * CHUNK; tx < (cx + 1) * CHUNK; tx++) bakeTile(c2, world, tx, ty, eps);
+      ch = { canvas, used: 0, ds };
+      chunks.set(key, ch);
+      if (chunks.size > Math.max(14, Math.floor(CHUNK_BYTES / (size * size * 4)))) {   // drop the least recently used
+        let oldK = null, oldU = Infinity;
+        for (const [k, v] of chunks) if (v.used < oldU && v !== ch) { oldU = v.used; oldK = k; }
+        chunks.delete(oldK);
+      }
+    }
+    ch.used = ++chunkTick;
+    return ch;
+  }
   function drawTerrain(world, tx0, ty0, tx1, ty1) {
     if (!tileSprites) buildTileSprites();
     const eps = 0.7 / (view.dpr * cam.scale);
-    for (let ty = ty0; ty <= ty1; ty++) {
-      for (let tx = tx0; tx <= tx1; tx++) {
-        const code = world.terrainCode(tx, ty), i = ty * world.w + tx;
-        const list = tileSprites[code];
-        const s = list[(world.inBounds(tx, ty) ? variants[i] : 0) % list.length];
-        const x = tx * TILE, y = ty * TILE;
-        ctx.drawImage(s.canvas, x, y, TILE + eps, TILE + eps);
-        if (!world.inBounds(tx, ty)) continue;
-        const sh = shade[i];
-        if (sh && code <= 1) { ctx.fillStyle = SHADE[sh]; ctx.fillRect(x, y, TILE + eps, TILE + eps); }
-        if (code === TERRAIN.cliff.code) continue;
-        for (const [side, dx, dy] of SIDE_LIST) {
-          const nc = world.terrainCode(tx + dx, ty + dy);
-          if (nc !== code && PRIO[nc] > PRIO[code]) drawSprite(ctx, `edge:${TERRAIN_BY_CODE[nc].id}:${side}`, 0, x, y);
-        }
-      }
+    const c0x = Math.floor(tx0 / CHUNK), c1x = Math.floor(tx1 / CHUNK), c0y = Math.floor(ty0 / CHUNK), c1y = Math.floor(ty1 / CHUNK);
+    for (let cy = c0y; cy <= c1y; cy++) for (let cx = c0x; cx <= c1x; cx++) {
+      const ch = getChunk(world, cx, cy), ds = ch.ds, ox = cx * CHUNK_PX, oy = cy * CHUNK_PX;
+      // blit only the part of the chunk that is on screen (device-pixel aligned source rect) to keep the fill area small
+      const vx0 = Math.max(ox, Math.floor(cam.rx)), vy0 = Math.max(oy, Math.floor(cam.ry));
+      const vx1 = Math.min(ox + CHUNK_PX + 1, Math.ceil(cam.rx + cam.w) + 1), vy1 = Math.min(oy + CHUNK_PX + 1, Math.ceil(cam.ry + cam.h) + 1);
+      if (vx1 <= vx0 || vy1 <= vy0) continue;
+      const sx = Math.floor((vx0 - ox) * ds), sy = Math.floor((vy0 - oy) * ds);
+      const sw = Math.min(ch.canvas.width - sx, Math.ceil((vx1 - ox) * ds) - sx), sh = Math.min(ch.canvas.height - sy, Math.ceil((vy1 - oy) * ds) - sy);
+      ctx.drawImage(ch.canvas, sx, sy, sw, sh, ox + sx / ds, oy + sy / ds, sw / ds, sh / ds);
     }
+    // warm one neighbour chunk per frame in the direction of travel so walking never builds a chunk on the critical frame
+    const px = game.state.player.x / CHUNK_PX, py = game.state.player.y / CHUNK_PX, cx0 = Math.floor(px), cy0 = Math.floor(py);
+    const nx = cx0 + (px - cx0 > 0.5 ? 1 : -1), ny = cy0 + (py - cy0 > 0.5 ? 1 : -1);
+    for (const [wx, wy] of [[nx, cy0], [cx0, ny], [nx, ny]]) {
+      if (wx < -1 || wy < -1 || wx > world.w / CHUNK || wy > world.h / CHUNK || getChunk(world, wx, wy, false)) continue;
+      getChunk(world, wx, wy); break;
+    }
+    void eps;
   }
 
   function collectObjects(world, tx0, ty0, tx1, ty1) {
@@ -193,5 +239,5 @@ export function createRenderer(game, canvas) {
   const screenToWorld = (sx, sy) => ({ x: (cam.rx ?? cam.x) + sx / cam.scale, y: (cam.ry ?? cam.y) + sy / cam.scale });
   const worldToScreen = (x, y) => ({ x: (x - (cam.rx ?? cam.x)) * cam.scale, y: (y - (cam.ry ?? cam.y)) * cam.scale });
 
-  return { resize, render, screenToWorld, worldToScreen, lighting, quality: () => gov.q, snapCamera: () => { cam.snap = true; } };
+  return { resize, render, screenToWorld, worldToScreen, lighting, quality: () => gov.q, fxScale: () => [1, 0.75, 0.55][gov.q], snapCamera: () => { cam.snap = true; } };
 }

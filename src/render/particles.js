@@ -20,9 +20,9 @@ export function createParticles(max = FX.maxParticles) {
 
   return {
     /** snow, blizzard in 0..1 (intensity). */
-    update(dt, w, h, snow, bliz) {
+    update(dt, w, h, snow, bliz, scale = 1) {
       if (!seeded || w !== W || h !== H) seed(w, h);
-      this.count = Math.min(max, Math.round(Math.max(FX.snowParticles * snow, FX.blizzardParticles * bliz)));
+      this.count = Math.min(max, Math.round(Math.max(FX.snowParticles * snow, FX.blizzardParticles * bliz) * scale));
       const n = this.count;
       const fallLo = lerp(FX.snowFall[0], FX.blizzardFall[0], bliz), fallHi = lerp(FX.snowFall[1], FX.blizzardFall[1], bliz);
       for (let i = 0; i < n; i++) {
