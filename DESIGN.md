@@ -253,7 +253,7 @@ It does not fish, craft herbal tea, use torches/torch posts, scout with the flig
 | signal d8/d10/d12, stone + spikes, iron spear | 100 / 100 / 100% | 100 / 90 / 70% |
 | signal d8/d10/d12, stone + spikes, bow | 100 / 100 / 100% | 100 / 90 / 80% |
 | bear, stone spear / iron spear / bow (hp lost, win) | 8 hp 100% / 3 hp 100% / 0 hp 100% | 85 hp 95% / 56 hp 100% / 0 hp 100% |
-| expedition, wreckage round trip (day 3/5/7, jacket or fur, clear or blizzard) | success 77-94%, no deaths, ~55 s | unchanged: no deaths, median 56 s of 264-288 s daylight; jacket-only blizzard day 7 is the only risky cell (min warmth 9, 77% success, 0 deaths); fur 90% (the failures are an unreachable site on one seed, not the weather) |
+| expedition, wreckage round trip (day 3/5/7, jacket or fur, clear or blizzard) | success 77-94%, no deaths, ~55 s | unchanged: no deaths, median 56 s of 264-288 s daylight; jacket-only blizzard day 7 is the only risky cell (min warmth 9, 77% success, 0 deaths); fur 90% (the 3 failures in 30 are the farthest site (~71 tiles, ~100-tile walk through deep snow) on seeds 5, 9, 10: a path exists, the bot's 12,000-node path search gives up; a harness limit, not the weather) |
 
 Reading: a stone + spike base with an iron spear or bow holds three signal nights in 70-100% of runs at days 8-12 (about 90-97% per night for this defender, easier than the 60-80% per-night target; the extra lever is `ENDGAME.enragedPackBonus`, `AI.wolf.structureDmgMult`, repair strength, see risks). A wooden base is mostly lost from day 10 (30-40%). The failures that remain are almost all hypothermia after a wall breach during a blizzard night, not bites.
 
