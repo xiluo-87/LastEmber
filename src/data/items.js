@@ -66,7 +66,7 @@ export const ITEMS = {
   fur_hat: { id: 'fur_hat', name: 'Fur hat', kind: 'clothing', stack: 1, color: '#a0673c', shape: 'hat', clothing: { slot: 'head', insulation: 4 } },
   fur_coat: { id: 'fur_coat', name: 'Fur coat', kind: 'clothing', stack: 1, color: '#a0673c', shape: 'coat', clothing: { slot: 'body', insulation: 9 } },
   fur_boots: { id: 'fur_boots', name: 'Fur boots', kind: 'clothing', stack: 1, color: '#a0673c', shape: 'boot', clothing: { slot: 'feet', insulation: 4 } },
-  worn_jacket: { id: 'worn_jacket', name: 'Worn jacket', kind: 'clothing', stack: 1, color: '#c2553a', shape: 'coat', clothing: { slot: 'body', insulation: 3 } },
+  worn_jacket: { id: 'worn_jacket', name: 'Worn jacket', kind: 'clothing', stack: 1, color: '#c2553a', shape: 'coat', clothing: { slot: 'body', insulation: 4 } },
 };
 
 // Bare hands: not an inventory item. Used by gather/combat when no tool is selected.

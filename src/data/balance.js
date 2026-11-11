@@ -23,7 +23,7 @@ export const TIME = {
 };
 
 export const TEMPERATURE = {
-  noonBase: -4, perDay: -1.2, floor: -40, nightOffset: -10,
+  noonBase: 4, perDay: -1.9, floor: -40, nightOffset: -10,
   snow: -3, blizzard: -12,
   comfort: 10, warmthRate: 0.06, rateMin: -2.5, rateMax: 3,
   campfire: { peak: 30, radius: 5 }, furnace: { peak: 15, radius: 3 }, torchHeld: 4,
@@ -35,7 +35,7 @@ export const WEATHER = {
   blizzard: { firstDay: 2, minDuration: 60, maxDuration: 150, warnSeconds: 30, moveMult: 0.8, visibilityTiles: 4, shelterlessFuelMult: 2,
     chanceBase: 0.25, chancePerDay: 0.1, chanceMax: 0.85 },        // chance of a blizzard on a given day (day >= firstDay)
   snow: { chance: 0.5, minDuration: 60, maxDuration: 180 },       // light-snow episode chance per day
-  day1ClearSeconds: 120,           // day 1: no weather in the first N seconds of the day
+  day1ClearSeconds: 300,           // day 1: no weather in the first N seconds of the day
   fadeSeconds: 4,                  // intensity / temperature-offset ease time on weather change
 };
 

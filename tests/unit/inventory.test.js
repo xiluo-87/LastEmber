@@ -76,7 +76,7 @@ test('clothing slots only accept matching clothing; equip swaps; insulation sums
   const find = (id) => { for (const a of ['hotbar', 'bag']) { const k = i[a].findIndex((s) => s?.id === id); if (k >= 0) return inv.ref(a, k); } };
   assert.ok(!inv.move(i, find('wood'), inv.ref('clothing', 1)), 'wood is not clothing');
   assert.ok(!inv.move(i, find('fur_hat'), inv.ref('clothing', 1)), 'hat is not a body item');
-  assert.ok(inv.equip(i, find('worn_jacket'))); assert.equal(i.clothing[1].id, 'worn_jacket'); assert.equal(inv.insulation(i), 3);
+  assert.ok(inv.equip(i, find('worn_jacket'))); assert.equal(i.clothing[1].id, 'worn_jacket'); assert.equal(inv.insulation(i), 4);
   assert.ok(inv.equip(i, find('fur_coat'))); assert.equal(i.clothing[1].id, 'fur_coat');
   assert.ok(inv.has(i, 'worn_jacket'), 'old jacket went back into the bag');
   assert.ok(inv.equip(i, find('fur_hat'))); assert.equal(inv.insulation(i), 9 + 4);

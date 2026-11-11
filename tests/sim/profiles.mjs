@@ -1,6 +1,6 @@
 // Bot play profiles. Every number is a knob of the policy in goals.mjs (thresholds are stat values 0..100, times in seconds).
 const base = {
-  eatBelow: 50, drinkBelow: 55, warmBelow: 45, warmUntil: 80,
+  eatBelow: 50, drinkBelow: 55, warmBelow: 40, warmUntil: 65,
   base: true,            // builds a campfire base near spawn
   walls: true,           // walls + door room around the fire
   workbench: true, bedroll: true, clothing: true, hunt: true, snares: true, rack: true, chest: true, torches: true,
@@ -9,6 +9,7 @@ const base = {
   nightFuel: true,       // top the fire up before dusk so it lasts the whole night
   retreatDusk: 45,       // seconds before night when the bot heads home
   fightWolves: true, fightHp: 45,
+  foodWant: 90,          // keep this much hunger-worth of food on hand
   maxRange: 38,          // tiles from home for ordinary gathering
   stone: true, spikes: true, iron: true, expeditions: true, endgame: true, sleep: true,
   daysSafe: 99,

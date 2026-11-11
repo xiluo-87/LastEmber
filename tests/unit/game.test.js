@@ -55,7 +55,7 @@ test('time: phases, day rollover, night grows, temperature falls', () => {
   assert.equal(phaseAt(1, 290).phase, 'dusk'); assert.equal(phaseAt(1, 400).phase, 'night');
   assert.ok(phaseAt(1, 100).light === 1 && phaseAt(1, 400).light < 0.1);
   assert.ok(ambientTemperature(5, 1) < ambientTemperature(1, 1)); assert.ok(ambientTemperature(1, 0.06) < ambientTemperature(1, 1));
-  assert.equal(ambientTemperature(1, 1), -4); assert.equal(ambientTemperature(100, 1), -40);
+  assert.equal(ambientTemperature(1, 1), 4); assert.equal(ambientTemperature(100, 1), -40);
   assert.equal(clockString(0), '06:00'); assert.equal(clockString(240), '18:00');
   const g = createGame(); g.newGame(1);
   const seen = []; g.events.on('time:phase', (e) => seen.push(e.phase)); const days = []; g.events.on('time:newDay', (e) => days.push(e.day));

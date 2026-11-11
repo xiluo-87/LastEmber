@@ -137,6 +137,65 @@ export function createGoals(bot) {
     if (!fire.lit && fire.fuel > 0) game.structures.light(fire);
   }
 
+
+  // ------------------------------------------------------------ bot rng, hunting, crafting stations
+  let rs = (game.state.seed ^ 0xb07) >>> 0;
+  const brand = () => { rs = (rs + 0x6d2b79f5) >>> 0; let t = rs; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const foodStock = () => cnt('cooked_meat') * 35 + cnt('jerky') * 25 + cnt('cooked_fish') * 28 + cnt('berries') * 8 + cnt('raw_meat') * 30 + cnt('raw_fish') * 20;
+  function wander(minD = 12, maxD = 26) {
+    const h = home(), m = bot.mem;
+    if (!m.wp || game.time > m.wpUntil || core.distPx(m.wp.x, m.wp.y) < 40) {
+      for (let i = 0; i < 12; i++) {
+        const a = brand() * Math.PI * 2, d = minD + brand() * (maxD - minD), tx = Math.round(h.cx + Math.cos(a) * d), ty = Math.round(h.cy + Math.sin(a) * d);
+        if (walkable(tx, ty) && W().terrainAt(tx, ty) !== 'ice') { m.wp = { x: tx * TILE + 16, y: ty * TILE + 16 }; m.wpUntil = game.time + 40; break; }
+      }
+    }
+    if (!m.wp) return false;
+    if (nav.goToPx('wander', m.wp.x, m.wp.y, 30, false) === 'unreachable') m.wp = null;
+    return true;
+  }
+  function butcher(k) {
+    if (core.distPx(k.x, k.y) > 22) { core.act(false); nav.goToPx(`carc:${k.x | 0}`, k.x, k.y, 18, true); return true; }
+    nav.stop(); core.hold('hands'); core.act(true); return true;
+  }
+  /** One step of hunting (carcass first, then prey). -> true if acted */
+  function huntStep() {
+    const h = home(), tl = T(), m = (bot.mem.skip ||= {});
+    const k = core.carcass(30);
+    if (k && tileDist(k.x / TILE, k.y / TILE, h.cx, h.cy) < prof.maxRange + 6) return butcher(k);
+    if (!tl.isNight && prof.retreatDusk && tl.toNight < 70) return false;
+    const prey = core.prey(['rabbit', 'deer'], 40).filter((x) => !(m[x.c.id] > game.time) && tileDist(x.c.x / TILE, x.c.y / TILE, h.cx, h.cy) < prof.maxRange);
+    if (!prey.length) return wander();
+    const { c } = prey[0];
+    const st = (bot.mem.hunt ||= { id: -1, t0: 0 });
+    if (st.id !== c.id) { st.id = c.id; st.t0 = game.time; }
+    if (game.time - st.t0 > 28) { m[c.id] = game.time + 200; st.id = -1; return true; }
+    const bow = core.hasTool('bow') && has('arrow');
+    core.hold(bow ? 'bow' : core.hasTool('spear') ? 'spear' : 'hands');
+    if (bow) core.shoot(c, 5.5); else core.attack(c, 1.7);
+    return true;
+  }
+  function atStation(st, r = 1.8) {
+    if (game.stationQuery().includes(st)) { nav.stop(); return true; }
+    const o = st === 'workbench' ? firstStruct('workbench') : homeFire();
+    if (!o) return false;
+    nav.goTo(`st:${st}`, (x, y) => walkable(x, y) && tileDist(x, y, o.tx, o.ty) <= r && tileDist(x, y, o.tx, o.ty) >= 1);
+    return null;
+  }
+  /** craft at a workbench: walk there first. -> true if acted */
+  function craftAt(id, inputs) {
+    if (!haveAll(inputs)) return shop(inputs);
+    const a = atStation('workbench');
+    if (a === false) return false;
+    if (a === null) return true;
+    core.craft(id); return true;
+  }
+  function ropeFor(n) {   // make sure `n` rope are in the bag (3 fiber each)
+    if (cnt('rope') >= n) return false;
+    if (cnt('fiber') >= 3) { core.craft('rope'); return true; }
+    return fetch('fiber');
+  }
+
   // ------------------------------------------------------------ rules
   const rules = [];
   const rule = (name, fn) => { Object.defineProperty(fn, 'name', { value: name }); rules.push(fn); };
@@ -274,7 +333,15 @@ export function createGoals(bot) {
       ['workbench', () => prof.workbench && !nStruct('workbench') && buildProj('workbench', { wood: 4, stone: 2 })],
       ['walls', () => prof.walls && wallsProject()],
       ['spear', () => !has('spear') && makeTool('spear', { stick: 2, flint: 1, fiber: 1 })],
-      ['bedroll', () => prof.bedroll && !nStruct('bedroll') && has('hide', 2) && buildProj('bedroll', { fiber: 3, hide: 2 })],
+      ['cookcarry', () => { const f = homeFire(); if (!f || !f.lit || !(has('raw_meat') || has('raw_fish'))) return false; if (!walkToFire(f, 2.0)) return true; if (core.canCraft('cooked_meat') && has('raw_meat')) core.craft('cooked_meat'); else if (has('raw_fish')) core.craft('cooked_fish'); return true; }],
+      ['hide2', () => prof.bedroll && nStruct('bedroll') === 0 && !has('hide', 2) && prof.hunt && huntStep()],
+      ['bedroll', () => prof.bedroll && nStruct('bedroll') === 0 && has('hide', 2) && (cnt('fiber') < 3 ? fetch('fiber') : buildProj('bedroll', { fiber: 3, hide: 2 }))],
+      ['food', () => prof.hunt && foodStock() < prof.foodWant && (cnt('berries') < 6 && core.nearest(['berry_bush'], (o) => !nearDen(o) && tileDist(o.tx, o.ty, home().cx, home().cy) < prof.maxRange) && T().toNight > 80 ? fetch('berries') : huntStep())],
+      ['wear', () => { for (const id of ['fur_coat', 'fur_boots', 'fur_hat']) { const w = S().inventory.clothing.some((c) => c && c.id === id); if (!w && has(id)) { core.wear(id); return true; } } return false; }],
+      ['coat', () => prof.clothing && !coatWorn('fur_coat') && has('hide', 5) && (cnt('rope') >= 2 ? craftAt('fur_coat', { hide: 5, rope: 2 }) : ropeFor(2))],
+      ['boots', () => prof.clothing && !coatWorn('fur_boots') && has('hide', 3) && (cnt('rope') >= 1 ? craftAt('fur_boots', { hide: 3, rope: 1 }) : ropeFor(1))],
+      ['hat', () => prof.clothing && !coatWorn('fur_hat') && has('hide', 2) && (cnt('rope') >= 1 ? craftAt('fur_hat', { hide: 2, rope: 1 }) : ropeFor(1))],
+      ['hides', () => prof.clothing && (!coatWorn('fur_coat') || !coatWorn('fur_boots') || !coatWorn('fur_hat')) && cnt('hide') < 10 && huntStep()],
       ['woodstock', () => cnt('wood') < prof.stockpileWood && fetch('wood')],
       ['sticks', () => cnt('stick') < 6 && fetch('stick')],
     ];
@@ -282,6 +349,8 @@ export function createGoals(bot) {
     bot.plan.step = 'none';
     return false;
   });
+
+  function coatWorn(id) { const I = S().inventory; return I.clothing.some((c) => c && c.id === id) || ['bag', 'hotbar'].some((a) => I[a].some((c) => c && c.id === id)); }
 
   function sleepWatch() { const p = P(); if (p.thirst < 12 || p.hunger < 12) game.sleep.wake('manual'); }
   return { rules, sleepWatch, home, homeFire, fetch, build };

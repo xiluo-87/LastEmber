@@ -33,8 +33,8 @@ test('naked idle player at day-1 noon loses warmth at the designed rate', () => 
   g.state.time.t = 150; g.state.weather.planDay = 1; g.state.weather.plan = [];
   g.step(1);
   const w0 = g.state.player.warmth; g.step(600);
-  approx((w0 - g.state.player.warmth) / 10, 0.84, 0.02);
-  approx(g.state.survival.felt, -4, 1e-6);
+  approx((w0 - g.state.player.warmth) / 10, 0.36, 0.02);
+  approx(g.state.survival.felt, 4, 1e-6);
 });
 
 test('heat provider and shelter seam raise felt temperature and warmth', () => {
@@ -42,9 +42,9 @@ test('heat provider and shelter seam raise felt temperature and warmth', () => {
   const p = g.state.player;
   g.heatProviders.push((game, push) => push({ x: p.x + TILE, y: p.y, heat: T.campfire.peak, radius: T.campfire.radius }));
   g.step(1);
-  approx(g.state.survival.felt, -4 + 30 * (1 - 1 / 5), 1e-6);
+  approx(g.state.survival.felt, 4 + 30 * (1 - 1 / 5), 1e-6);
   g.shelterQuery = () => true; g.step(1);
-  approx(g.state.survival.felt, -4 + 8 + 24 * 1.5, 1e-6);
+  approx(g.state.survival.felt, 4 + 8 + 24 * 1.5, 1e-6);
   p.warmth = 50; g.step(60); assert.ok(p.warmth > 50);
 });
 
