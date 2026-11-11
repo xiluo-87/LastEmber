@@ -21,8 +21,9 @@ const RESCUE = ENDGAME.rescue;
 const E = (game) => game.state.endgame;
 
 function findTower(game) {
-  const l = game.building?.list?.('radio_tower');
-  return l && l.length ? l[0] : null;
+  const l = game.building?.list?.('radio_tower');   // a Set (or empty iterable)
+  if (l) for (const o of l) return o;
+  return null;
 }
 
 function wreckList(game) {
@@ -158,13 +159,13 @@ export default {
       if (r.done) startRescue(game);
     });
     game.events.on('game:over', () => { game.endgameRt.rescue = null; });
+    game.events.on('game:loaded', () => { if (E(game).rescuePending) startRescue(game); });   // saved at the dawn of the rescue
   },
   onLoad(game) {
     const rt = game.endgameRt, eg = E(game);
     rt.rescue = null; rt.powered = false; rt.outage = false; rt.markers = []; rt.t = 0; rt.wreckT = 0;
     const tw = findTower(game); eg.tower = tw ? { tx: tw.tx, ty: tw.ty } : null;
-    if (game.mode === 'playing' || game.mode === 'title') rt.wrecks = wreckList(game);
-    if (eg.rescuePending && game.mode !== 'title') startRescue(game);
+    rt.wrecks = wreckList(game);
   },
   update(game, dt) {
     const st = game.state, eg = st?.endgame, rt = game.endgameRt;
