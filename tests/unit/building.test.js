@@ -214,7 +214,7 @@ test('chest transfer + workbench station + sleeping preconditions', () => {
   const inv = g.state.inventory, i = inv.bag.findIndex((s) => s?.id === 'stone');
   const n = inv.bag[i].n; assert.equal(transferStack(inv, 'bag', i, chest.inv, ['bag']), n);
   assert.equal(chest.inv.bag.find(Boolean).id, 'stone'); assert.equal(count(inv, 'stone'), 0);
-  put(g, 'workbench', cx - 1, cy + 1);
+  add(g.state.inventory, 'stone', 5); put(g, 'workbench', cx - 1, cy + 1);
   g.step(2); assert.ok(g.stationQuery().includes('workbench'));
   P.x += 10 * TILE; assert.ok(!g.stationQuery().includes('workbench')); P.x -= 10 * TILE;
   // sleep: daytime refusal, then at night with a warm room
@@ -227,7 +227,7 @@ test('chest transfer + workbench station + sleeping preconditions', () => {
 test('sleep: warm night -> sleeping effect, time x12, wakes at dawn; damage wakes', () => {
   const { g, cx, cy, P } = field();
   add(g.state.inventory, 'wood', 60);
-  put(g, 'campfire', cx + 1, cy); const f = g.world.objectAt(cx + 1, cy); for (let i = 0; i < 4; i++) g.structures.addFuel(f, 'wood'); g.structures.light(f);
+  put(g, 'campfire', cx + 1, cy); const f = g.world.objectAt(cx + 1, cy); for (let i = 0; i < 10; i++) g.structures.addFuel(f, 'wood'); g.structures.light(f);
   put(g, 'bedroll', cx, cy + 1); ring(g, cx, cy, 2);
   g.state.time.t = 320; g.weather.force('clear', 6000); g.step(5);
   P.hunger = 90; P.thirst = 90;
