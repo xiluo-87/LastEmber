@@ -8,6 +8,8 @@ import buildbar from './buildbar.js';
 import fuel from './fuel.js';
 import chest from './chest.js';
 import sleep from './sleep.js';
+import howto from './howto.js';
+import tower from './tower.js';
 
 export const PANELS = [
   bag,
@@ -18,5 +20,7 @@ export const PANELS = [
   fuel,
   chest,
   sleep,
+  howto,
+  tower,
   // append here
 ];

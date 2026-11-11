@@ -85,6 +85,26 @@ function drawPlane(ctx, x, y, size, ang) {
   ctx.closePath(); ctx.fill(); ctx.restore();
 }
 
+/** Compass markers in screen space (css px): wreckage + home. Computed on demand by ui/compass.js each frame. */
+function computeMarkers(game, out = []) {
+    out.length = 0;
+  const st = game.state, eg = st?.endgame, rt = game.endgameRt, R = game.renderer, v = game.view;
+  if (!eg || !R || !v || game.mode !== 'playing') return out;
+  const hasMap = count(st.inventory, 'flight_map') > 0;
+  const p = st.player, inset = { top: 56, bottom: document.body.classList.contains('touch') ? 96 : 76, left: 0, right: 0 };
+  const place = (kind, key, tx, ty, label) => {
+    const c = game.world.tileCenter(tx, ty), s = R.worldToScreen(c.x, c.y);
+    const m = edgeMarker(s.x, s.y, v.w, v.h, ENDGAME.markerPad, inset);
+    if (m) out.push({ kind, key, x: m.x, y: m.y, angle: m.angle, dist: tilesBetween(p.x, p.y, c.x, c.y), label });
+  };
+  for (const w of visibleWrecks(rt.wrecks, eg.seen, hasMap)) place('wreck', wreckKey(w), w.tx, w.ty, 'Wreck');
+  if (eg.home) {
+    const o = game.world.objectAt(eg.home.tx, eg.home.ty);
+    if (o && o.type === 'campfire') place('home', 'home', eg.home.tx, eg.home.ty, 'Home');
+  }
+  return out;
+}
+
 export default {
   name: 'endgame',
   defaults: defaultEndgame,
@@ -106,7 +126,7 @@ export default {
         game.events.emit('radio:transmit', { on: eg.transmitting });
         return eg.transmitting;
       },
-      markers: () => rt.markers,
+      markers: () => computeMarkers(game, rt.markers),
       debug: { forceVictory() { const eg = E(game); eg.nights = ENDGAME.signalNights; eg.rescuePending = true; startRescue(game); } },
     };
     game.hudChips = game.hudChips || [];
@@ -195,26 +215,6 @@ export default {
     if (eg.transmitting && !rt.powered) {
       if (!rt.outage) { rt.outage = true; game.ui.toast?.('Tower unpowered: signal paused. Keep a fire lit nearby.', 'bad', 3200); }
     } else rt.outage = false;
-  },
-
-  /** Compass markers in screen space (css px): wreckage + home. Computed on demand by ui/compass.js each frame. */
-  computeMarkers(game, out = []) {
-    out.length = 0;
-    const st = game.state, eg = st?.endgame, rt = game.endgameRt, R = game.renderer, v = game.view;
-    if (!eg || !R || !v || game.mode !== 'playing') return out;
-    const hasMap = count(st.inventory, 'flight_map') > 0;
-    const p = st.player, inset = { top: 56, bottom: document.body.classList.contains('touch') ? 96 : 76, left: 0, right: 0 };
-    const place = (kind, key, tx, ty, label) => {
-      const c = game.world.tileCenter(tx, ty), s = R.worldToScreen(c.x, c.y);
-      const m = edgeMarker(s.x, s.y, v.w, v.h, ENDGAME.markerPad, inset);
-      if (m) out.push({ kind, key, x: m.x, y: m.y, angle: m.angle, dist: tilesBetween(p.x, p.y, c.x, c.y), label });
-    };
-    for (const w of visibleWrecks(rt.wrecks, eg.seen, hasMap)) place('wreck', wreckKey(w), w.tx, w.ty, 'Wreck');
-    if (eg.home) {
-      const o = game.world.objectAt(eg.home.tx, eg.home.ty);
-      if (o && o.type === 'campfire') place('home', 'home', eg.home.tx, eg.home.ty, 'Home');
-    }
-    return out;
   },
 
   drawScreen(game, ctx, w, h) {

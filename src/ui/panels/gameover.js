@@ -10,16 +10,12 @@ export default {
     const win = payload.kind === 'victory';
     ctl.setTitle(win ? 'Rescued!' : 'You died');
     const day = payload.day ?? game.state?.time?.day ?? 1;
-    const ex = payload.extra || {}, secs = payload.stats?.playSeconds ?? ex.playSeconds ?? 0;
-    const rows = [['Days survived', day], ['Time alive', mmss(secs)]];
-    if (!win) {
-      if (ex.minFelt != null && ex.minFelt < 99) rows.push(['Coldest you felt', `${Math.round(ex.minFelt)}°C`]);
-      if (ex.hits) rows.push(['Hits taken', ex.hits]);
-    }
-    body.innerHTML = `<p class="go-cause">${payload.cause || (win ? 'The rescue plane found you.' : 'The cold took you.')}</p>
+    // shared run stats (systems/stats.js -> logic/stats.js): days, time alive, animals hunted, structures built, coldest night, distance...
+    const rows = game.stats ? game.stats.rows() : [['Days survived', day], ['Time alive', mmss(payload.stats?.playSeconds ?? 0)]];
+    body.innerHTML = `<p class="go-cause${win ? ' win' : ''}">${payload.cause || (win ? 'The rescue plane found you.' : 'The cold took you.')}</p>
       ${payload.tip ? `<p class="go-tip">${payload.tip}</p>` : ''}
       <div class="go-stats">${rows.map(([k, v]) => `<span>${k}</span><b>${v}</b>`).join('')}</div>
-      <div class="stack"><button class="btn primary" data-a="again">Try again</button></div>`;
+      <div class="stack"><button class="btn primary" data-a="again">${win ? 'Play again' : 'Try again'}</button></div>`;
     body.querySelector('[data-a="again"]').addEventListener('click', () => { ctl.close(); game.newGame(randomSeed()); });
     return {};
   },

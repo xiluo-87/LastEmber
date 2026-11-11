@@ -4,6 +4,8 @@ import { createHotbar } from './hotbar.js';
 import { createPanels } from './panels.js';
 import { createTouch, isTouchDevice } from './touch.js';
 import { createTitle } from './title.js';
+import { createObjective } from './objective.js';
+import { createCompass } from './compass.js';
 import { PANELS } from './panels/index.js';
 import { installInventoryUi } from './inventory-ui.js';
 
@@ -24,9 +26,10 @@ export function createUI(game, { hud: hudRoot, panels: panelsRoot, title: titleR
     hud, hotbar, panels, touch: null,
     toast: hud.toast, setBanner: hud.setBanner, setObjective: hud.setObjective,
     setActionLabel(text) { ui.touch?.setActionLabel(text); },
-    update() { hud.update(); hotbar.update(); panels.update(); },
+    update() { hud.update(); hotbar.update(); panels.update(); objective.update(); compass.update(); },
   };
   game.ui = ui;
+  const objective = createObjective(game, hudRoot), compass = createCompass(game, hudRoot);
   installInventoryUi(game, ui);
   if (touchOn) ui.touch = createTouch(game, touchRoot, game.input);
   createTitle(game, titleRoot);

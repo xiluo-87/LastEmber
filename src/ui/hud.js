@@ -1,5 +1,5 @@
 // HUD skeleton (DOM): 5 stat bars, day/clock/temperature/weather pill, status chips, toasts, banner, objective, target hint.
-import { SURVIVAL } from '../data/balance.js';
+import { SURVIVAL, TOASTS } from '../data/balance.js';
 
 const ICONS = {
   health: '<path d="M12 21s-7-4.6-9.3-9.2C1.2 8.6 3 5 6.4 5c2 0 3.6 1.1 5.6 3.3C14 6.1 15.600 5 17.600 5 21 5 22.800 8.600 21.300 11.800 19 16.400 12 21 12 21z"/>',
@@ -39,13 +39,22 @@ export function createHud(game, root) {
   const chips = $('.chips'), obj = $('.objective'), banner = $('.banner'), toasts = $('.toasts'), hint = $('.hint');
   $('.hud-pause').addEventListener('pointerdown', (e) => { e.stopPropagation(); game.ui.panels.open('pause'); });
 
+  const queue = [], visible = [];
+  function pump() {
+    while (visible.length < TOASTS.maxVisible && queue.length) {
+      const q = queue.shift(), t = document.createElement('div'), rec = { msg: q.msg };
+      t.className = `toast ${q.kind}`; t.textContent = q.msg; toasts.appendChild(t); visible.push(rec);
+      setTimeout(() => { t.classList.add('out'); setTimeout(() => { t.remove(); visible.splice(visible.indexOf(rec), 1); pump(); }, 350); }, queue.length > 1 ? q.ms * 0.6 : q.ms);
+    }
+  }
   let lastChips = '', lastHint = '', lastDial = '', lastTemp = '', lastTrend = '', lastWx = '';
   const api = {
-    toast(msg, kind = 'info', ms = 2600) {
-      const t = document.createElement('div'); t.className = `toast ${kind}`; t.textContent = msg;
-      toasts.appendChild(t);
-      while (toasts.children.length > 4) toasts.firstChild.remove();
-      setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 400); }, ms);
+    /** Toast stack: at most TOASTS.maxVisible on screen, the rest wait in a short queue; duplicates are dropped. */
+    toast(msg, kind = 'info', ms = TOASTS.ms) {
+      if (visible.some((v) => v.msg === msg) || queue.some((v) => v.msg === msg)) return;
+      queue.push({ msg, kind, ms: Math.min(ms ?? TOASTS.ms, TOASTS.maxMs) });
+      while (queue.length > TOASTS.queueMax) queue.shift();
+      pump();
     },
     setBanner(text, kind = 'warn') { banner.hidden = !text; banner.textContent = text || ''; banner.dataset.kind = kind; },
     setObjective(text) { obj.hidden = !text; obj.textContent = text ? `▸ ${text}` : ''; },
@@ -74,11 +83,13 @@ export function createHud(game, root) {
       const pt = game.world && game.shelterQuery ? game.world.worldToTile(p.x, p.y) : null;
       const sheltered = !!(pt && game.shelterQuery(pt.tx, pt.ty));
       const lf = game.structures?.lowFuel, lowTxt = lf ? `${lf.type === 'torch_post' ? 'Torch' : 'Fire'} low: ${Math.ceil(lf.secs)}s` : '';
-      const extra = (sheltered ? 'S' : '') + (lowTxt ? `L${lowTxt}` : '');
+      const ex = game.hudChips ? game.hudChips.flatMap((fn) => fn(game) || []) : [];
+      const extra = (sheltered ? 'S' : '') + (lowTxt ? `L${lowTxt}` : '') + ex.map((c) => c.text).join('|');
       const cs = Object.keys(p.status || {}).map((k) => `${k}`).join(',') + '|' + extra;
       if (cs !== lastChips) {
         lastChips = cs;
         chips.innerHTML = (sheltered ? '<span class="chip" style="--c:#ffbf69">Sheltered</span>' : '') + (lowTxt ? `<span class="chip pulse" style="--c:#ff6b6b">${lowTxt}</span>` : '')
+          + ex.map((c) => `<span class="chip${c.pulse ? ' pulse' : ''}" style="--c:${c.color}">${c.text}</span>`).join('')
           + Object.keys(p.status || {}).map((k) => { const d = STATUS_DEFS[k] || { label: k, color: '#ccc' }; return `<span class="chip" style="--c:${d.color}">${d.label}</span>`; }).join('');
       }
       const tg = game.target, h = tg ? `${tg.verb || 'Use'} · ${tg.name}` : '';
