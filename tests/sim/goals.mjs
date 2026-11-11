@@ -13,6 +13,8 @@ export function createGoals(bot) {
   const has = (i, n = 1) => core.has(i, n), cnt = (i) => core.count(i);
   const T = () => core.time();
   const walkable = (x, y) => nav.walkable(x, y);
+  const nStruct = (type) => { let n = 0; for (const _ of game.building.list(type)) n++; return n; };
+  const firstStruct = (type) => { for (const o of game.building.list(type)) return o; return null; };
 
   // ------------------------------------------------------------ base layout (3x3 interior around the fire, ring of walls, door south)
   const RING = [];
@@ -62,7 +64,8 @@ export function createGoals(bot) {
     const d = core.distTilesTo(tx, ty);
     core.act(false);
     if (d > 2.6) {
-      const r = nav.goTo(`build:${tx},${ty}`, (x, y) => walkable(x, y) && !(x === tx && y === ty) && tileDist(x, y, tx, ty) >= 1 && tileDist(x, y, tx, ty) <= 2.3);
+      const r = nav.goTo(`build:${tx},${ty}`, (x, y) => walkable(x, y) && !(x === tx && y === ty) && tileDist(x, y, tx, ty) >= 1 && tileDist(x, y, tx, ty) <= 1.9);
+      if (r === 'arrived') { const c = core.center({ tx, ty }), p = P(); nav.push(c.x - p.x, c.y - p.y); }
       return r === 'unreachable' ? 'fail' : 'moving';
     }
     if (o && o.type.startsWith('loose')) return core.work(o, { press: true }) === 'working' ? 'moving' : 'fail';
@@ -198,7 +201,7 @@ export function createGoals(bot) {
     }
     if (!fire.lit && fire.fuel > 0) { if (!walkToFire(fire, 1.6)) return true; game.structures.light(fire); return true; }
     if (t.isNight && prof.sleep && prof.bedroll) {
-      const bed = game.building.list('bedroll')[0];
+      const bed = firstStruct('bedroll');
       if (bed && !game.sleep.refusal() && p.hunger > 25 && p.thirst > 25) { core.work(bed, { interact: true }); return true; }
     }
     if (!(t.isNight || t.toNight < 20)) return false;
@@ -247,30 +250,36 @@ export function createGoals(bot) {
 
   rule('projects', () => {
     const h = home();
-    const crate = core.ofType('crash_site').find((o) => !o.depleted);
-    if (crate) { if (core.work(crate, { press: true }) !== 'unreachable') return true; }
-    if (!core.hasTool('axe')) return makeTool('stone_axe', { stick: 2, stone: 2, fiber: 1 });
-    if (!core.hasTool('pickaxe')) return makeTool('stone_pickaxe', { stick: 2, stone: 3, fiber: 1 });
-    const fire = homeFire();
-    if (!fire) {
-      if (!has('flint')) return fetch('flint');
-      if (!haveAll({ stick: 3, stone: 3 })) return shop({ stick: 3, stone: 3 });
-      return build('campfire', h.cx, h.cy) !== 'fail';
-    }
-    if (!fire.lit) {
-      if (fire.fuel <= 0 && !has('stick') && !has('wood')) return fetch('stick');
-      if (!walkToFire(fire, 1.6)) return true;
-      tendFire(fire, 120);
-      if (!fire.lit) { if (!has('flint')) return fetch('flint'); game.structures.light(fire); }
-      return true;
-    }
-    if (cnt('wood') < 6) return fetch('wood');
-    if (prof.workbench && !game.building.list('workbench').length) return buildProj('workbench', { wood: 4, stone: 2 });
-    if (prof.walls && wallsProject()) return true;
-    if (!has('spear')) return makeTool('spear', { stick: 2, flint: 1, fiber: 1 });
-    if (prof.bedroll && !game.building.list('bedroll').length && has('hide', 2)) return buildProj('bedroll', { fiber: 3, hide: 2 });
-    if (cnt('wood') < prof.stockpileWood) return fetch('wood');
-    if (cnt('stick') < 6) return fetch('stick');
+    const steps = [
+      ['crate', () => { const crate = core.ofType('crash_site').find((o) => !o.depleted); return crate && core.work(crate, { press: true }) !== 'unreachable'; }],
+      ['axe', () => !core.hasTool('axe') && makeTool('stone_axe', { stick: 2, stone: 2, fiber: 1 })],
+      ['pickaxe', () => !core.hasTool('pickaxe') && makeTool('stone_pickaxe', { stick: 2, stone: 3, fiber: 1 })],
+      ['campfire', () => {
+        const fire = homeFire();
+        if (!fire) {
+          if (!has('flint')) return fetch('flint');
+          if (!haveAll({ stick: 3, stone: 3 })) return shop({ stick: 3, stone: 3 });
+          return build('campfire', h.cx, h.cy) !== 'fail';
+        }
+        if (!fire.lit) {
+          if (fire.fuel <= 0 && !has('stick') && !has('wood')) return fetch('stick');
+          if (!walkToFire(fire, 1.6)) return true;
+          tendFire(fire, 120);
+          if (!fire.lit) { if (!has('flint')) return fetch('flint'); game.structures.light(fire); }
+          return true;
+        }
+        return false;
+      }],
+      ['wood6', () => cnt('wood') < 6 && fetch('wood')],
+      ['workbench', () => prof.workbench && !nStruct('workbench') && buildProj('workbench', { wood: 4, stone: 2 })],
+      ['walls', () => prof.walls && wallsProject()],
+      ['spear', () => !has('spear') && makeTool('spear', { stick: 2, flint: 1, fiber: 1 })],
+      ['bedroll', () => prof.bedroll && !nStruct('bedroll') && has('hide', 2) && buildProj('bedroll', { fiber: 3, hide: 2 })],
+      ['woodstock', () => cnt('wood') < prof.stockpileWood && fetch('wood')],
+      ['sticks', () => cnt('stick') < 6 && fetch('stick')],
+    ];
+    for (const [name, fn] of steps) if (fn()) { bot.plan.step = name; return true; }
+    bot.plan.step = 'none';
     return false;
   });
 
