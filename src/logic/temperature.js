@@ -37,7 +37,7 @@ export function feltBreakdown(inp, out = {}) {
   out.clothing = inp.insulation || 0;
   out.torch = inp.torch || 0;
   out.sheltered = sheltered;
-  out.felt = out.ambient + out.weather + out.heat + out.shelter + out.clothing + out.torch;
+  out.felt = Math.min(T.feltMax, out.ambient + out.weather + out.heat + out.shelter + out.clothing + out.torch);
   return out;
 }
 

@@ -42,9 +42,9 @@ test('heat provider and shelter seam raise felt temperature and warmth', () => {
   const p = g.state.player;
   g.heatProviders.push((game, push) => push({ x: p.x + TILE, y: p.y, heat: T.campfire.peak, radius: T.campfire.radius }));
   g.step(1);
-  approx(g.state.survival.felt, 4 + 30 * (1 - 1 / 5), 1e-6);
+  approx(g.state.survival.felt, Math.min(T.feltMax, 4 + 30 * (1 - 1 / 5)), 1e-6);          // capped at feltMax (26)
   g.shelterQuery = () => true; g.step(1);
-  approx(g.state.survival.felt, 4 + 8 + 24 * 1.5, 1e-6);
+  approx(g.state.survival.felt, Math.min(T.feltMax, 4 + 8 + 24 * 1.5), 1e-6);
   p.warmth = 50; g.step(60); assert.ok(p.warmth > 50);
 });
 

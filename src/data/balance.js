@@ -29,6 +29,7 @@ export const TEMPERATURE = {
   comfort: 10, warmthRate: 0.06, rateMin: -2.5, rateMax: 3,
   campfire: { peak: 30, radius: 5 }, furnace: { peak: 15, radius: 3 }, torchHeld: 4,
   shelterBonus: 8, enclosedFireMult: 1.5,
+  feltMax: 26,                               // felt temperature never exceeds this (fire next to you cannot read as 58 degC)
 };
 
 export const WEATHER = {

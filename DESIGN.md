@@ -50,6 +50,7 @@ Radio Tower and hold out until rescue. No zombies, no magic — weather, hunger 
 | Stamina | sprint -18/s, swing -6; regen +14/s (halved if hunger or thirst <20) | can't sprint, swings 40% slower |
 
 Felt temperature = ambient + weather + heat sources (campfire +30 at centre falling linearly to 0 at 5 tiles; furnace +15/3 tiles; torch held +4) + shelter (enclosed room: +8 and wind/weather penalty removed; fire inside enclosed room gets x1.5 heat) + clothing (sum of equipped insulation) .
+Felt temperature is capped at 26°C.
 Warmth rate per second = `clamp((felt - 10) * 0.06, -2.5, +3)` → comfortable at felt >= 10°C. So with only the starting jacket at day-1 noon (felt 8 °C) it is -0.12/s, but day-1 dusk/night (felt ≈ -2 °C) is ≈ -0.7/s, and from day 2 on it is -0.4 to -1.0/s: a player with no fire has warmth 0 after ≈ 5.5 min and is dead before dawn of day 2 (idle median 363 s). Clothing and fire are mandatory.
 
 Health regen: +0.25 HP/s only if hunger>50, thirst>50, warmth>50, not bleeding.

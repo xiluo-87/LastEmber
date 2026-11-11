@@ -1,7 +1,7 @@
 // Bag panel: tabs [Bag | Craft]. Phone-first, one-thumb, no hover.
 //   Bag tab:   clothing slots, hotbar, 4x4 bag grid; tap a slot -> item detail card (sticky at the bottom) with Use/Equip/Drop,
 //              durability bar, and "put in hotbar slot 1-5" buttons.
-//   Craft tab: recipes grouped by station, craftable first, have/need chips, missing station/ingredient shown on greyed rows.
+//   Craft tab: recipes grouped by station (nearby stations first, then By hand), craftable first, have/need chips, missing station/ingredient shown on greyed rows.
 // open: game.ui.panels.open('bag', { tab: 'craft' }) or game.ui.openCraft()  (C key)
 import * as inv from '../../logic/inventory.js';
 import { paintSlot } from '../slots.js';
@@ -110,8 +110,10 @@ export function renderInventoryPanel(game, body, payload = {}, ctl) {
     const stations = game.stationQuery ? game.stationQuery() : ['hand'];
     const sig = invSig(st) + stations.join();
     if (!force && sig === craftSig) return; craftSig = sig;
-    const groups = groupRecipes(st, stations);
     const near = stations.filter((s) => s !== 'hand');
+    // Groups for stations you are standing next to come first (above "By hand"); the rest keep STATION_ORDER.
+    const all = groupRecipes(st, stations);
+    const groups = [...all.filter((g) => near.includes(g.station)), ...all.filter((g) => !near.includes(g.station))];
     let html = `<div class="snowrow"><div><b>Snow</b><div class="muted small">+8 thirst, -10 warmth</div></div><button class="btn" data-a="snow" type="button">Eat snow</button></div>
       <div class="muted small stations">${near.length ? `Nearby: ${near.join(', ')}` : 'No crafting station nearby (workbench, lit campfire, lit furnace)'}</div>`;
     for (const g of groups) {

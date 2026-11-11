@@ -209,7 +209,7 @@ for (const view of views) {
   await snap('inside-room');
   const room = await g(([x, y]) => ({ sheltered: !!__game.shelterQuery(x, y), t: [...document.querySelectorAll('.chip')].map((c) => c.textContent) }), [fire.tx + 2, fire.ty]);
   check(room.sheltered, `${view}: room formed / sheltered (${room.t.join(',')})`);
-  check(!/Wall in/i.test(await objective()), `${view}: shelter objective ticked (${await objective()})`);
+  check(!/Build a hut/i.test(await objective()), `${view}: shelter objective ticked (${await objective()})`);
 
   // --- the fire burned out while we built: refuel + relight from inside the room, then Cook / Craft from the fuel panel
   await g(() => { __game.debug.give('raw_meat', 1); });

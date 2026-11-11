@@ -270,12 +270,16 @@ function onObjectChanged(game, tx, ty, obj, prev) {
   if (game.mode !== 'playing') return;
   const p = game.state.player, ptile = game.world.worldToTile(p.x, p.y);
   for (const room of res.formed) {
-    if (room.size < BUILDING.roomMinToast) continue;
     const near = room.tiles.some((k) => { const x = k % game.world.w, y = Math.floor(k / game.world.w); return Math.hypot(x - ptile.tx, y - ptile.ty) <= 12; });
     if (!near) continue;
+    if (room.size < BUILDING.roomMinToast) { game.ui.toast?.('Too cramped — leave space to stand inside', 'bad', 3000); continue; }
     B.flash = { t: 0, tiles: room.tiles.slice() };
     game.ui.toast?.('Shelter complete — this room holds heat', 'good', 3600);
     game.events.emit('room:formed', { size: room.size, tiles: room.tiles });
+  }
+  // Walled in a fire with no free tile (e.g. 8 walls round a campfire): no room forms, so say why.
+  if (!res.formed.length && now && sealedFireNear(game, tx, ty)) {
+    game.ui.toast?.('Too cramped — leave space to stand inside', 'bad', 3000);
   }
   if (res.breached.length) {
     const inside = res.breached.some((r) => r.tiles.includes(ptile.ty * game.world.w + ptile.tx)) || res.breached.some((r) => r.tiles.some((k) => Math.hypot((k % game.world.w) - ptile.tx, Math.floor(k / game.world.w) - ptile.ty) <= 8));
@@ -284,6 +288,17 @@ function onObjectChanged(game, tx, ty, obj, prev) {
   }
 }
 const isBlockingObj = (o) => { const d = objectDef(o.type); return !d || !!d.blocks || !!d.blocksCreatures; };
+/** True when a campfire/furnace next to (tx,ty) has no free 4-neighbour (it is sealed in, so no room can hold a player). */
+function sealedFireNear(game, tx, ty) {
+  const world = game.world, blocked = isFloodBlocked(world);
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const x = tx + dx, y = ty + dy, o = world.objectAt(x, y);
+    const st = o && objectDef(o.type)?.station;
+    if (st !== 'campfire' && st !== 'furnace') continue;
+    if ([[1, 0], [-1, 0], [0, 1], [0, -1]].every(([ex, ey]) => blocked(x + ex, y + ey))) return true;
+  }
+  return false;
+}
 
 // ---- placement
 const dirTile = (facing) => (Math.abs(Math.cos(facing)) >= Math.abs(Math.sin(facing)) ? [Math.cos(facing) >= 0 ? 1 : -1, 0] : [0, Math.sin(facing) >= 0 ? 1 : -1]);
