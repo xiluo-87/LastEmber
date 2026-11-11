@@ -15,11 +15,16 @@ export function fleeRange(def, playerSprinting) {
   return playerSprinting ? f.range : (f.sneakRange ?? f.range);
 }
 
-/** Do wolves ignore fire? Enraged packs always; from day 8 packs of >= 4 do. */
+/** Do wolves ignore campfires/furnaces? Enraged packs always; from day ignoreFireFromDay packs of >= ignoreFireMinPack do. */
 export function ignoresFire({ day, packSize, enraged }) {
   if (enraged) return true;
   return day >= WOLF.ignoreFireFromDay && packSize >= WOLF.ignoreFireMinPack;
 }
+
+/** What scares this wolf: FEAR_ALL (every lit fire + held torch), FEAR_TORCHES (torch posts and the held torch only: big late packs have
+ *  stopped fearing campfires/furnaces), FEAR_NONE (enraged signal packs fear nothing). */
+export const FEAR_ALL = 0, FEAR_TORCHES = 1, FEAR_NONE = 2;
+export function fearMode(i) { return i.enraged ? FEAR_NONE : ignoresFire(i) ? FEAR_TORCHES : FEAR_ALL; }
 
 /** Is (x,y) (world px) inside a lit radius (+marginTiles)? fires: [{x,y,r}] (r in tiles), n = count used. */
 export function inLitRadius(x, y, fires, n, marginTiles = 0) {

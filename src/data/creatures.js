@@ -5,7 +5,7 @@
 //   cap: population cap (undefined = governed by rule, see balance.WOLF / dens)
 export const CREATURES = {
   rabbit: { id: 'rabbit', name: 'Rabbit', hp: 6, speed: 4.2, radius: 0.25, color: '#e5e7eb', hostile: false,
-    flee: { range: 5 }, cap: 14, drops: [{ item: 'raw_meat', n: 1 }, { item: 'hide', n: 1, chance: 0.5 }] },
+    flee: { range: 5, sneakRange: 2.2 }, cap: 14, drops: [{ item: 'raw_meat', n: 1 }, { item: 'hide', n: 1, chance: 0.5 }] },
   deer: { id: 'deer', name: 'Deer', hp: 30, speed: 4.6, radius: 0.4, color: '#b08968', hostile: false,
     flee: { range: 7, sneakRange: 4 }, herd: [2, 4], cap: 8,
     drops: [{ item: 'raw_meat', n: 3 }, { item: 'hide', n: 2 }, { item: 'bone', n: 1 }, { item: 'fat', n: 1 }] },
@@ -13,7 +13,7 @@ export const CREATURES = {
     dmg: 9, cooldown: 1.4, sight: 10, fleeHpFrac: 0.3, packRule: true, // see balance.WOLF
     drops: [{ item: 'raw_meat', n: 2 }, { item: 'hide', n: 1 }, { item: 'bone', n: 1 }, { item: 'fat', n: 1 }] },
   bear: { id: 'bear', name: 'Bear', hp: 120, speed: 3.6, radius: 0.55, color: '#5b4636', hostile: true,
-    dmg: 25, cooldown: 2, territory: 6, leash: 12, // cap = number of dens
+    dmg: 25, cooldown: 2, territory: 6, leash: 12, poise: true, // cap = number of dens; poise: player hits do not interrupt its swing
     drops: [{ item: 'raw_meat', n: 6 }, { item: 'hide', n: 3 }, { item: 'bone', n: 2 }, { item: 'fat', n: 3 }] },
 };
 export const creatureDef = (id) => CREATURES[id] || null;
@@ -33,7 +33,7 @@ export const AI = {
     circleTime: [1.4, 2.8], keepDistDay: [9, 12], huntHysteresis: 1.7, prowlDrift: 28, enragedSight: 22,
     hitReach: 0.35, maxLungers: (size) => Math.max(1, Math.ceil(size / 3)), packGap: 0.7, fireMargin: 0.6,
     torchFearR: 3.5, fleeSeconds: 6, aggroSeconds: 12, carcassSense: 12, guardR: 2.6, feedRate: 2,
-    structureHitInterval: 1.4, structureStuck: 1.2, despawnDist: 16,
+    structureHitInterval: 1.4, structureDmgMult: 1, structureStuck: 1.2, despawnDist: 16,
     secondPackDelay: 90, maxPacksPerNight: 2,
   },
   bear: { charge: 1.25, telegraph: 0.45, reach: 0.45, wander: 2.5, pause: [2, 5], regen: 4, aggroSeconds: 10, respawnDays: 3, structureHitInterval: 2 },

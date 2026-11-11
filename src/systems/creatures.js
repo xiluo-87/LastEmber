@@ -38,7 +38,7 @@ function makeRuntime(game) {
     pather: createPather(world.w, world.h),
     cworld: { isBlocked: (tx, ty) => CW.isBlockedForCreature(game, tx, ty) },
     blocked: (tx, ty) => CW.isBlockedForCreature(game, tx, ty),
-    fires: [], nFires: 0, fireT: 0, torch: { x: 0, y: 0, r: W.torchFearR }, torchOn: false,
+    fires: [], nFires: 0, fireT: 0, torch: { x: 0, y: 0, r: W.torchFearR, post: true }, torchOn: false,
     rosters: new Map(), rosterT: 0, out: { tx: 0, ty: 0 }, hit: { tx: 0, ty: 0 },
     px: 0, py: 0, psprint: false, php: 100, night: false, day: 1, registered: false, tmp: { x: 0, y: 0 },
     cands: [], // targeting candidate pool
@@ -51,10 +51,11 @@ const rt = (game) => game.creatureRt;
 function refreshFires(game, r) {
   r.nFires = CW.litFires(game, r.fires);
 }
-/** Fire-fear test list: building fires followed by the held lit torch (if any). */
-function fearList(r) {
+/** Fire-fear test list: building fires followed by the held lit torch (if any). mode = A.FEAR_* (torches-only drops campfires/furnaces). */
+function fearList(r, mode = A.FEAR_ALL) {
   const l = r.fireList; let n = 0;
-  for (let i = 0; i < r.nFires; i++) l[n++] = r.fires[i];
+  if (mode >= A.FEAR_NONE) { l.length = 0; return 0; }
+  for (let i = 0; i < r.nFires; i++) if (mode === A.FEAR_ALL || r.fires[i].post) l[n++] = r.fires[i];
   if (r.torchOn) l[n++] = r.torch;
   l.length = n;
   return n;
@@ -277,7 +278,7 @@ export function hurtCreature(game, c, dmg, o = {}) {
       c.alert = (def.herd ? AI.deer.fleeSeconds : AI.rabbit.fleeSeconds) + 2; c.ai = 'flee'; c.t = 0;
       if (c.pack) for (const m of roster(rt(game), c.pack)) if (m !== c) { m.alert = AI.deer.fleeSeconds + 1; m.ai = 'flee'; m.t = 0; }
     }
-    if (c.ai === 'telegraph' || c.ai === 'windup') { c.ai = 'recover'; c.t = 0; }
+    if ((c.ai === 'telegraph' || c.ai === 'windup') && !def.poise) { c.ai = 'recover'; c.t = 0; }   // hits interrupt a wind-up, except from creatures with poise (bear)
   }
   game.events.emit('creature:hit', { c, dmg, source: o.source || 'player' });
   if (c.hp <= 0) { killCreature(game, c, o.source || 'player'); return true; }
@@ -429,8 +430,7 @@ function pickStructureTarget(game, r, c) {
 function thinkWolf(game, c, r) {
   const s = S(game), def = CREATURES.wolf, pk = s.packs[c.pack], ros = roster(r, c.pack);
   const dist = distTiles(c.x, c.y, r.px, r.py);
-  const ignore = A.ignoresFire({ day: r.day, packSize: c.ps, enraged: !!c.en });
-  c.ign = ignore ? 1 : 0;
+  c.ign = A.fearMode({ day: r.day, packSize: c.ps, enraged: !!c.en });   // 0 fears all fire, 1 torches only, 2 nothing
   const hpFrac = c.hp / def.hp;
   const mode = A.wolfMode({ night: r.night, enraged: !!c.en, dist, playerHp: r.php, hpFrac, aggro: c.aggro > 0, nearKill: nearGuardedKill(game, r), hunting: c.mode === HUNT, sight: WOLF.nightHuntRadius });
   if (mode !== c.mode) { c.mode = mode; if (mode === HUNT && c.ai !== 'telegraph' && c.ai !== 'lunge' && c.ai !== 'recover') { c.ai = 'circle'; c.t = 0; } }
@@ -492,8 +492,8 @@ function thinkWolf(game, c, r) {
   if (c.cd <= 0 && c.ct <= 0 && dist <= W.lungeRange && (!pk || s.clock >= pk.nextLunge) && game.mode === 'playing') {
     let lungers = 0; for (const m of ros) if (m.ai === 'telegraph' || m.ai === 'lunge') lungers++;
     if (lungers < W.maxLungers(ros.length || 1) && lineClear(r.blocked, c.x, c.y, r.px, r.py, def.radius * TILE)) {
-      if (!ignore) { // never lunge from or into a lit area
-        const n = fearList(r), ex = c.x + (r.px - c.x) * 0.9, ey = c.y + (r.py - c.y) * 0.9;
+      if (c.ign < A.FEAR_NONE) { // never lunge from or into a lit area (the lit areas this wolf still fears)
+        const n = fearList(r, c.ign), ex = c.x + (r.px - c.x) * 0.9, ey = c.y + (r.py - c.y) * 0.9;
         if (A.inLitRadius(c.x, c.y, r.fireList, n, W.fireMargin) || A.inLitRadius(ex, ey, r.fireList, n, 0) || A.inLitRadius(r.px, r.py, r.fireList, n, 0)) return;
       }
       c.ai = 'telegraph'; c.t = 0; c.mx = c.my = 0; c.cd = def.cooldown; c.face = r.px >= c.x ? 1 : -1;
@@ -545,7 +545,7 @@ function tickWolf(game, c, dt, r) {
       if (Math.hypot(gx - c.x, gy - c.y) <= 1.45 * TILE) {
         c.hitStructT = W.structureHitInterval; c.mx = c.my = 0; c.face = gx >= c.x ? 1 : -1;
         const o = CW.structureAt(game, c.stx, c.sty);
-        const res = CW.hitStructure(game, c.stx, c.sty, def.dmg, 'wolf');
+        const res = CW.hitStructure(game, c.stx, c.sty, def.dmg * W.structureDmgMult, 'wolf');
         if (o) { const dps = CW.spikesAt(game, c.stx, c.sty); if (dps) hurtCreature(game, c, dps * W.structureHitInterval, { source: 'spikes' }); }
         if (!res || res.destroyed) { c.ai = 'circle'; c.stx = -1; }
       }
@@ -631,8 +631,8 @@ function moveCreature(game, c, dt, def, r) {
       }
     }
     // fire fear: wolves do not step into a lit radius (and are pushed out if caught inside)
-    if (c.type === 'wolf' && !c.ign && c.ai !== 'flee') {
-      const n = fearList(r);
+    if (c.type === 'wolf' && c.ign < A.FEAR_NONE && c.ai !== 'flee') {
+      const n = fearList(r, c.ign);
       if (n) {
         const f = A.inLitRadius(c.x, c.y, r.fireList, n, 0);
         if (f) { const ox = c.x - f.x, oy = c.y - f.y, l = Math.hypot(ox, oy) || 1; ux = ox / l; uy = oy / l; sp = 1.1; }

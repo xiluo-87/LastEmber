@@ -28,7 +28,7 @@ export function litFires(game, out) {
   let n = 0;
   const b = game.building;
   if (b && isFn(b.litFires)) {
-    for (const f of b.litFires(game)) { const o = out[n] || (out[n] = { x: 0, y: 0, r: 0 }); o.x = f.x; o.y = f.y; o.r = f.radius; n++; }
+    for (const f of b.litFires(game)) { const o = out[n] || (out[n] = { x: 0, y: 0, r: 0, post: false }); o.x = f.x; o.y = f.y; o.r = f.radius; o.post = f.type === 'torch_post'; n++; }
     return n;
   }
   game.world.forEachObject((obj) => {
@@ -36,8 +36,8 @@ export function litFires(game, out) {
     if (!d || !d.light) return;
     const lit = obj.lit === true || (obj.lit === undefined && (obj.fuel ?? 0) > 0);
     if (!lit) return;
-    const o = out[n] || (out[n] = { x: 0, y: 0, r: 0 });
-    o.x = obj.tx * TILE + TILE / 2; o.y = obj.ty * TILE + TILE / 2; o.r = d.light.radius; n++;
+    const o = out[n] || (out[n] = { x: 0, y: 0, r: 0, post: false });
+    o.x = obj.tx * TILE + TILE / 2; o.y = obj.ty * TILE + TILE / 2; o.r = d.light.radius; o.post = obj.type === 'torch_post'; n++;
   });
   return n;
 }
