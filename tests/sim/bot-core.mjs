@@ -121,16 +121,15 @@ export function createBotCore(game) {
       if (e >= 0) { inv.selectHotbar(I, e); return true; }
       return false;
     }
+    // several tools of one class (stone + iron spear): use the strongest
+    const dmg = (s) => (s && ITEMS[s.id]?.tool?.class === cls ? ITEMS[s.id].tool.dmg || 0 : -1);
     const cur = I.hotbar[I.selected];
-    if (cur && ITEMS[cur.id]?.tool?.class === cls) return true;
-    for (let i = 0; i < I.hotbar.length; i++) {
-      const s = I.hotbar[i];
-      if (s && ITEMS[s.id]?.tool?.class === cls) { inv.selectHotbar(I, i); game.events.emit('hotbar:changed', { index: i }); return true; }
-    }
-    for (let i = 0; i < I.bag.length; i++) {
-      const s = I.bag[i];
-      if (s && ITEMS[s.id]?.tool?.class === cls) return equipToHotbar(game, inv.ref('bag', i));
-    }
+    let bestH = -1, bestHd = -1, bestB = -1, bestBd = -1;
+    for (let i = 0; i < I.hotbar.length; i++) if (dmg(I.hotbar[i]) > bestHd) { bestHd = dmg(I.hotbar[i]); bestH = i; }
+    for (let i = 0; i < I.bag.length; i++) if (dmg(I.bag[i]) > bestBd) { bestBd = dmg(I.bag[i]); bestB = i; }
+    if (cur && dmg(cur) >= Math.max(bestHd, bestBd) && dmg(cur) >= 0) return true;
+    if (bestH >= 0 && bestHd >= bestBd) { inv.selectHotbar(I, bestH); game.events.emit('hotbar:changed', { index: bestH }); return true; }
+    if (bestB >= 0) return equipToHotbar(game, inv.ref('bag', bestB));
     return false;
   };
   core.heldClass = () => { const s = inv.selectedStack(S().inventory); return s ? ITEMS[s.id]?.tool?.class || null : null; };
@@ -182,11 +181,11 @@ export function createBotCore(game) {
   };
 
   /** Face and attack a creature (walk toward it, hold Action; combat auto-aims inside the swing arc). */
-  core.attack = (c, reach = 1.5) => {
+  core.attack = (c, reach = 1.5, sprint = true) => {
     const p = P(), d = Math.hypot(c.x - p.x, c.y - p.y) / TILE;
     if (d > reach) {
       core.act(false);
-      nav.goToPx(`atk:${c.id}`, c.x, c.y, reach * TILE * 0.8, true);
+      nav.goToPx(`atk:${c.id}`, c.x, c.y, reach * TILE * 0.8, sprint);
       return 'moving';
     }
     nav.push(c.x - p.x, c.y - p.y);

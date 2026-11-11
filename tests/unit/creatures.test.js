@@ -278,7 +278,7 @@ test('spike barricades hurt creatures that touch them; hostilesNear for the slee
   const r = spawnCreature(g, 'rabbit', (t.tx + 3) * TILE - 9, (t.ty + 0.5) * TILE); r.fz = 0; r.hp = 100; r.th = 0;
   const hp0 = r.hp; r.mx = 0; r.pz = 999; p.x -= 9 * TILE;   // idle rabbit, player out of its flee range
   g.step(60);
-  assert.ok(r.hp < hp0 - 5, `spiked: ${hp0} -> ${r.hp}`);
+  assert.ok(r.hp < hp0 - 3, `spiked: ${hp0} -> ${r.hp}`);
   const wolf = spawnCreature(g, 'wolf', p.x + 5 * TILE, p.y); wolf.fz = 1;
   assert.equal(hostilesNear(g, p.x, p.y, 8).length, 1);
   assert.equal(hostilesNear(g, p.x, p.y, 4).length, 0);

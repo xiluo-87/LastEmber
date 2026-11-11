@@ -33,7 +33,7 @@ export const AI = {
     circleTime: [1.4, 2.8], keepDistDay: [9, 12], huntHysteresis: 1.7, prowlDrift: 28, enragedSight: 22,
     hitReach: 0.35, maxLungers: (size) => Math.max(1, Math.ceil(size / 3)), packGap: 0.7, fireMargin: 0.6,
     torchFearR: 3.5, fleeSeconds: 6, aggroSeconds: 12, carcassSense: 12, guardR: 2.6, feedRate: 2,
-    structureHitInterval: 1.4, structureDmgMult: 1.5, blockerReach: 1.6, structureStuck: 1.2, despawnDist: 16,
+    structureHitInterval: 1.4, structureDmgMult: 2.5, blockerReach: 1.6, structureStuck: 1.2, despawnDist: 16,
     secondPackDelay: 90, maxPacksPerNight: 2,
   },
   bear: { charge: 1.25, telegraph: 0.45, reach: 0.45, wander: 2.5, pause: [2, 5], regen: 4, aggroSeconds: 10, respawnDays: 3, structureHitInterval: 2 },

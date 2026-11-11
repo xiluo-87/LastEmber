@@ -17,6 +17,7 @@ import * as inv from '../../src/logic/inventory.js';
 import { daylightLength, nightLength } from '../../src/logic/clock.js';
 import { createBotCore } from './bot-core.mjs';
 import { tileDist } from './nav.mjs';
+import { createDefender } from './defender.mjs';
 import { memStorage } from './run.mjs';
 
 // ---------------------------------------------------------------- kits (direct inventory fill)
@@ -97,6 +98,8 @@ export function maintain(game, base, cfg, spent) {
       if (inv.removeAll(I, def.cost)) { for (const c of def.cost) pay(c.item, c.n); put(game, type, tx, ty); }
     }
   }
+  const fire = game.world.objectAt(base.cx, base.cy);
+  if (fire && fire.type === 'campfire') { while (fire.fuel + 60 <= 600 && inv.remove(I, 'wood', 1)) { fire.fuel += 60; pay('wood', 1); } if (fire.fuel > 0) fire.lit = true; }
   game.building.onLoad?.(game);
 }
 
@@ -119,111 +122,12 @@ export function newScenario(seed, cfg) {
   return { game, base };
 }
 
-// ---------------------------------------------------------------- defender policy
-function createDefender(game, base, cfg) {
-  const core = createBotCore(game), nav = core.nav, P = () => game.state.player, W = () => game.world;
-  const d = base.d, has = (i, n = 1) => core.has(i, n);
-  const interior = [];
-  for (let dx = -(d - 1); dx <= d - 1; dx++) for (let dy = -(d - 1); dy <= d - 1; dy++) interior.push({ tx: base.cx + dx, ty: base.cy + dy });
-  const walkable = (x, y) => nav.walkable(x, y);
-  const inside = (x, y) => Math.abs(x - base.cx) <= d - 1 && Math.abs(y - base.cy) <= d - 1;
-  const fire = () => W().objectAt(base.cx, base.cy);
-  const st = { repT: 0, fuelT: 0, acts: { attack: 0, repair: 0, shoot: 0, fuel: 0, bandage: 0 } };
-  const hpFrac = (o) => (o.hp ?? STRUCTURES[o.type].hp) / STRUCTURES[o.type].hp;
-  const MAT = { wood_wall: 'wood', stone_wall: 'stone', door: 'wood', spike_barricade: 'wood', radio_tower: 'iron_ingot', workbench: 'wood' };
-
-  function goInside(key, tx, ty) {
-    const me = core.tile();
-    if (me.tx === tx && me.ty === ty) { nav.stop(); return true; }
-    nav.goTo(key, (x, y) => x === tx && y === ty); return false;
-  }
-  function damaged(maxFrac) {
-    let worst = null;
-    for (const o of game.building.listAll()) {
-      const m = MAT[o.type]; if (!m || !has(m)) continue;
-      if (tileDist(o.tx, o.ty, base.cx, base.cy) > d + 2.5 || hpFrac(o) > maxFrac) continue;
-      if (!worst || hpFrac(o) < hpFrac(worst)) worst = o;
-    }
-    return worst;
-  }
-  function repairStep(o) {
-    // stand on the interior tile closest to the structure
-    let best = null, bd = 1e9;
-    for (const t of interior) { if (!walkable(t.tx, t.ty)) continue; const dd = tileDist(t.tx, t.ty, o.tx, o.ty); if (dd < bd) { bd = dd; best = t; } }
-    if (!best) return false;
-    if (core.distTilesTo(o.tx, o.ty) > 1.9) { goInside(`rep:${best.tx},${best.ty}`, best.tx, best.ty); return true; }
-    nav.stop();
-    if (game.time >= st.repT) { st.repT = game.time + 0.45; if (game.structures.repair(o).ok) st.acts.repair++; }
-    return true;
-  }
-  function rebuildStep() {          // put a missing wall/door back (only when no creature is on or next to the tile)
-    for (const [type, tx, ty] of layout(base, cfg)) {
-      if (type === 'spike_barricade' || type === 'torch_post') continue;
-      const o = W().objectAt(tx, ty); if (o) continue;
-      if (!core.canAfford(type)) continue;
-      if (core.distTilesTo(tx, ty) > 2.6) { goInside(`rb:${tx},${ty}`, ...nearestInterior(tx, ty)); return true; }
-      nav.stop();
-      if (game.building.validate(type, tx, ty).ok && core.place(type, tx, ty)) { st.acts.rebuild = (st.acts.rebuild || 0) + 1; return true; }
-      return false;
-    }
-    return false;
-  }
-  function nearestInterior(tx, ty) { let best = interior[0], bd = 1e9; for (const t of interior) { if (!walkable(t.tx, t.ty)) continue; const dd = tileDist(t.tx, t.ty, tx, ty); if (dd < bd) { bd = dd; best = t; } } return [best.tx, best.ty]; }
-  function hostiles() { return core.hostiles(14).filter((h) => h.c.type === 'wolf'); }
-  const LOS = (c) => { const p = P(); const n = Math.ceil(Math.hypot(c.x - p.x, c.y - p.y) / 8); for (let i = 1; i < n; i++) if (W().isBlockedAtPx(p.x + ((c.x - p.x) * i) / n, p.y + ((c.y - p.y) * i) / n)) return false; return true; };
-
-  function think() {
-    const p = P(), t = core.time();
-    if (game.sleep?.active) return;
-    // 1 vitals
-    if (p.status?.bleeding && has('bandage')) { core.use('bandage'); st.acts.bandage++; return; }
-    if (p.hunger < 45 && has('cooked_meat')) { core.use('cooked_meat'); return; }
-    if (p.thirst < 45 && has('clean_water')) { core.use('clean_water'); return; }
-    const ws = hostiles(), near = ws.filter((h) => h.d <= 9);
-    // 2 fire (cheap, do between fights)
-    const f = fire();
-    if (f && f.fuel < 260 && has('wood') && !(near.length && near[0].d < 3.2)) {
-      if (core.distTilesTo(f.tx, f.ty) > 2.4) { goInside('fuel', f.tx, f.ty + 1); return; }
-      for (let i = 0; i < 6; i++) if (!game.structures.addFuel(f, 'wood').ok) break;
-      if (!f.lit && f.fuel > 0) game.structures.light(f);
-      st.acts.fuel++; return;
-    }
-    // 2b a breach: rebuild between lunges
-    if (cfg.rebuild !== false && !(near.length && near[0].d < 2.4) && rebuildStep()) return;
-    // 3 fight
-    if (near.length) {
-      const { c, d: dist } = near[0];
-      const bow = KITS[cfg.kit || 'stone_spear'].bow && has('arrow') && dist >= 2.4 && dist <= 6.3 && LOS(c);
-      if (bow) {
-        core.hold('bow'); const a = Math.atan2(c.y - p.y, c.x - p.x);
-        nav.push(Math.cos(a), Math.sin(a)); nav.stop(); p.facing = a; core.act(true, true); st.acts.shoot++; return;
-      }
-      core.hold(has('iron_spear') ? 'spear' : 'spear');
-      if (dist <= 2.15) {                                       // reach 1.8 + wolf radius, works through a wall
-        // repair first when the wall between us is nearly gone and a wolf is chewing it
-        const w = damaged(0.35); if (w && tileDist(w.tx, w.ty, c.x / TILE, c.y / TILE) < 2.2 && core.distTilesTo(w.tx, w.ty) < 2.2) { repairStep(w); return; }
-        nav.push(c.x - p.x, c.y - p.y); core.act(true, true); st.acts.attack++; return;
-      }
-      // reposition to the interior tile nearest the wolf (stay inside)
-      const w = damaged(0.5); if (w) { repairStep(w); return; }
-      let best = null, bd = 1e9;
-      for (const tl of interior) { if (!walkable(tl.tx, tl.ty)) continue; const dd = Math.hypot(tl.tx * TILE + 16 - c.x, tl.ty * TILE + 16 - c.y); if (dd < bd) { bd = dd; best = tl; } }
-      if (best && bd / TILE > 1.6) { core.act(false); goInside('react', best.tx, best.ty); return; }
-      core.act(false); nav.stop(); return;
-    }
-    core.act(false);
-    // 4 repairs when quiet
-    const w = damaged(0.8); if (w) { repairStep(w); return; }
-    // 5 idle at the fire
-    if (core.distTilesTo(base.cx, base.cy) > 1.9) goInside('home', base.cx, base.cy + 1); else nav.stop();
-  }
-  return { think, st, core };
-}
+// (the defender policy lives in defender.mjs: shared with the competent bot's night routine)
 
 // ---------------------------------------------------------------- generic runner (defence / signal)
 export function runNight(seed, cfg) {
   const { game, base } = newScenario(seed, cfg);
-  const def = createDefender(game, base, cfg), core = def.core;
+  const core = createBotCore(game), def = createDefender(game, core, { cx: base.cx, cy: base.cy, d: base.d, layout: () => layout(base, cfg) }, { bow: KITS[cfg.kit || 'stone_spear'].bow, rebuild: cfg.rebuild });
   const r = { seed, hpLost: 0, minHp: 100, walls: 0, wallsByType: {}, spikesLost: 0, wolvesKilled: 0, wolvesBySpikes: 0, maxWolves: 0, died: false, won: false, cause: 'alive', nights: 0, towerLost: false, over: null, spent: {} };
   const startDay = cfg.day, nights = cfg.nights || 1;
   game.events.on('player:damaged', ({ amount }) => { r.hpLost += amount; });
@@ -235,6 +139,7 @@ export function runNight(seed, cfg) {
   let guard = 0;
   while (game.mode === 'playing' && guard++ < 400000) {
     def.think(); game.step(6);
+    if (cfg.trace) cfg.trace(game, base);
     const p = game.state.player; r.minHp = Math.min(r.minHp, p.health);
     const nw = game.state.creatures.list.reduce((n, c) => n + (c.type === 'wolf' ? 1 : 0), 0); if (nw > r.maxWolves) r.maxWolves = nw;
     const tm = game.state.time;
