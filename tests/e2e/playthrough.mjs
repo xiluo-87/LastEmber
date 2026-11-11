@@ -165,7 +165,8 @@ for (const view of views) {
     for (let i = 0; i < 14 && (await countItem(P.page, 'wood')) === 0; i++) await P.act(900);
     check((await countItem(P.page, 'wood')) > 0, `${view}: chopped wood (${await countItem(P.page, 'wood')})`);
     await snap('chopped');
-    await sleep(600);
+    await P.page.waitForFunction(() => __game.state.tutorial.facts.chopped, null, { timeout: 4000 }).catch(() => {});
+    await sleep(2500);
     check(!/Chop wood/i.test(await objective()), `${view}: chop objective ticked (${await objective()})`);
   }
 
@@ -185,6 +186,7 @@ for (const view of views) {
       const sx = c.x + ((c.x - fc.x - 16) / out) * 70, sy = c.y + ((c.y - fc.y) / out) * 70;
       const d = await g(([x, y]) => Math.hypot(x - __game.state.player.x, y - __game.state.player.y), [c.x, c.y]);
       if (d > 3 * 32) await P.goTo(sx, sy, 24, 9000);
+      if (attempt === 2) console.log('   placeAt', type, tx, ty, 'player', JSON.stringify(await player()), 'target', sx | 0, sy | 0, await g(() => __game.building.ghost.reason));
       const [px, py] = await P.tileScreen(tx, ty);
       await P.tapAt(px, py); await P.tapAt(px, py);
       await sleep(150);
@@ -193,6 +195,7 @@ for (const view of views) {
     return false;
   }
   await g(() => __game.state.time && (__game.state.time.t = 100));
+  console.log('   walking back to the base', await P.goTo(fc.x, fc.y + 80, 30, 25000, true));
   let placedAll = true;
   for (const [x, y] of ring) { if (x === doorT[0] && y === doorT[1]) continue; if (!(await placeAt('wood_wall', x, y))) { placedAll = false; console.log('   wall failed at', x, y, await g(() => __game.building.ghost.reason)); } }
   await snap('walls-placed');
