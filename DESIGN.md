@@ -216,14 +216,14 @@ Competent milestones (median, seconds of game time): first axe 8, pickaxe 19, ca
 | snare dawn chance | 35% | 50% | snares were not worth the rope vs. bow hunting |
 | jerky hunger | 25 | 40 | cooking is instant, so a rack that makes weaker food was strictly useless |
 
-**Checked and left alone:** resource density (30 seeds: >= 13 trees, >= 5 dead bushes (fiber), >= 3 boulders, >= 2 berry bushes within 15 tiles), hunger/thirst rates, wolf escalation, wall/spike numbers, 16 slots (the bot filled the bag with 3 stacks of sticks/stone and had to manage it: slots do create choices), durability (a stone axe lasts ~15 trees; the bot remade tools about every 2 days).
+**Checked and left alone:** resource density (30 seeds: >= 13 trees, >= 5 dead bushes (fiber), >= 3 boulders, >= 2 berry bushes within 15 tiles), hunger/thirst rates, wolf escalation, wall/spike numbers, 16 slots (the bot filled the bag with 3 stacks of sticks/stone and had to manage it: slots do create choices), durability (a stone axe = 60 durability = about 15 trees).
 
 **Bugs found and fixed (regression tests in tests/unit/determinism.test.js and tests/sim/sim.test.js)**
 * Creature AI, drops, snares, fishing, poison, arrow recovery used `Math.random`: sims were not reproducible and a save/load did not continue the random stream. Now one seeded stream in `state.rngA`.
 * `Math.random` monkey-patches in 3 existing unit tests replaced by `game.rand`.
 * `game.building.list(type)` returns a `Set` (not an array): fine in the game, a trap for tools; documented here.
 * Save -> load round trip: full-state comparison is exact except `survival.rate` (the smoothed HUD trend arrow, recomputed on load) - cosmetic.
-* Build mode left in 'dismantle' silently replaces the Action target (the player can no longer chop or gather and gets no hint). Bot-side guard added; a human can hit this by closing the build bar with the Action button held. Candidate UI fix for the QA engineer: cancel dismantle mode when the build bar closes.
+* Build mode left in 'dismantle' silently replaces the Action target (the player can no longer chop or gather and gets no hint). Bot-side guard added; a human might hit it by leaving dismantle mode on (untested). Candidate UI fix for the QA engineer: cancel dismantle mode when the build bar closes.
 
 **What the bot cannot do (bot limits, not game limits)**
 It does not fish, craft herbal tea, use torches/torch posts, scout with the flight map, run forward camps, or sneak up on deer. It never finishes the endgame: it collects 2-3 radio parts by day 6-9 and sometimes smelts a few ingots and crafts iron tools, but wolves or cold end the run first (days 9-14). The tower/signal code is exercised only by the existing headless 3-night endgame unit test, not by the bot. Stone-wall upgrade is slow (one wall at a time), so the bot usually faces day-8+ packs behind wood.
@@ -233,4 +233,4 @@ It does not fish, craft herbal tea, use torches/torch posts, scout with the flig
 2. Rabbits are nearly unreachable with a spear (the bot only hunts with the bow); is the bow-first progression clear to a new player? Flint/arrows gate food.
 3. Cooking and water boiling are instant and free; fuel is the only cost. Fishing (6 s cast, 55%) is likely the best food source where a lake is close.
 4. Day 1 is tight: first dusk at ~260 s after start; the bot has a closed shelter at ~120 s, a human may not.
-5. A bear on an iron cluster is the main danger of iron runs (the bot killed bears with bow/spear at ~15% hp loss per fight); a first bear fight at full hp is untested with humans.
+5. A bear on an iron cluster is the main danger of iron runs (the bot killed bears in 4-5 of 10 competent runs while mining; hp cost not measured); a first bear fight at full hp is untested with humans.
