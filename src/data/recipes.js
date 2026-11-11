@@ -19,6 +19,8 @@ export const RECIPES = [
   r('torch_coal', 'torch', 1, [['fiber', 1], ['coal', 1]]),
   r('bandage_cloth', 'bandage', 1, [['cloth', 1]]),
   r('bandage_herb', 'bandage', 1, [['fiber', 2], ['herb', 1]]),
+  r('bandage_hide', 'bandage', 1, [['hide', 1], ['fiber', 1]]),     // balance: bleeding is lethal, cloth/herbs are rare
+
   // workbench
   r('bow', 'bow', 1, [['stick', 3], ['rope', 2]], 'workbench'),
   r('arrow', 'arrow', 4, [['stick', 1], ['flint', 1]], 'workbench'),

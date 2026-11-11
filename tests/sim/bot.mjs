@@ -29,7 +29,7 @@ export function createBot(game, profileName = 'competent', opts = {}) {
   const S = () => game.state, P = () => game.state.player;
 
   // ------------------------------------------------------------ milestones (first time each happens, in play seconds)
-  const mark = (id, extra) => { if (bot.miles[id] === undefined) { bot.miles[id] = +S().stats.playSeconds.toFixed(1); if (extra) bot.notes.push(`${id}: ${extra}`); } };
+  const mark = (id, extra) => { if (bot.miles[id] === undefined) { bot.miles[id] = +((S().time.day - 1) * 480 + S().time.t - 40).toFixed(1); if (extra) bot.notes.push(`${id}: ${extra}`); } };
   bot.mark = mark;
   game.events.on('craft:done', ({ recipe }) => {
     const o = recipe.out.item;

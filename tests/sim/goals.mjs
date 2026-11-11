@@ -147,7 +147,7 @@ export function createGoals(bot) {
     if (!m.wp || game.time > m.wpUntil || core.distPx(m.wp.x, m.wp.y) < 40) {
       for (let i = 0; i < 12; i++) {
         const a = brand() * Math.PI * 2, d = minD + brand() * (maxD - minD), tx = Math.round(h.cx + Math.cos(a) * d), ty = Math.round(h.cy + Math.sin(a) * d);
-        if (walkable(tx, ty) && W().terrainAt(tx, ty) !== 'ice') { m.wp = { x: tx * TILE + 16, y: ty * TILE + 16 }; m.wpUntil = game.time + 40; break; }
+        if (walkable(tx, ty) && W().terrainAt(tx, ty) !== 'ice' && !nearDen({ tx, ty }, 16)) { m.wp = { x: tx * TILE + 16, y: ty * TILE + 16 }; m.wpUntil = game.time + 40; break; }
       }
     }
     if (!m.wp) return false;
@@ -164,7 +164,7 @@ export function createGoals(bot) {
     const k = core.carcass(30);
     if (k && tileDist(k.x / TILE, k.y / TILE, h.cx, h.cy) < prof.maxRange + 6) return butcher(k);
     if (!tl.isNight && prof.retreatDusk && tl.toNight < 70) return false;
-    const prey = core.prey(['rabbit', 'deer'], 40).filter((x) => !(m[x.c.id] > game.time) && tileDist(x.c.x / TILE, x.c.y / TILE, h.cx, h.cy) < prof.maxRange);
+    const prey = core.prey(['rabbit', 'deer'], 40).filter((x) => !(m[x.c.id] > game.time) && !nearDen({ tx: x.c.x / TILE, ty: x.c.y / TILE }, 14) && tileDist(x.c.x / TILE, x.c.y / TILE, h.cx, h.cy) < prof.maxRange);
     if (!prey.length) return wander();
     const { c } = prey[0];
     const st = (bot.mem.hunt ||= { id: -1, t0: 0 });
@@ -333,10 +333,11 @@ export function createGoals(bot) {
       ['workbench', () => prof.workbench && !nStruct('workbench') && buildProj('workbench', { wood: 4, stone: 2 })],
       ['walls', () => prof.walls && wallsProject()],
       ['spear', () => !has('spear') && makeTool('spear', { stick: 2, flint: 1, fiber: 1 })],
+      ['bandage', () => prof.hunt && cnt('bandage') < 2 && (has('hide') || cnt('stick') > 100) && has('fiber') && core.canCraft('bandage_hide') && core.craft('bandage_hide')],
       ['cookcarry', () => { const f = homeFire(); if (!f || !f.lit || !(has('raw_meat') || has('raw_fish'))) return false; if (!walkToFire(f, 2.0)) return true; if (core.canCraft('cooked_meat') && has('raw_meat')) core.craft('cooked_meat'); else if (has('raw_fish')) core.craft('cooked_fish'); return true; }],
+      ['food', () => prof.hunt && foodStock() < prof.foodWant && (cnt('berries') < 6 && core.nearest(['berry_bush'], (o) => !nearDen(o) && tileDist(o.tx, o.ty, home().cx, home().cy) < prof.maxRange) && T().toNight > 80 ? fetch('berries') : huntStep())],
       ['hide2', () => prof.bedroll && nStruct('bedroll') === 0 && !has('hide', 2) && prof.hunt && huntStep()],
       ['bedroll', () => prof.bedroll && nStruct('bedroll') === 0 && has('hide', 2) && (cnt('fiber') < 3 ? fetch('fiber') : buildProj('bedroll', { fiber: 3, hide: 2 }))],
-      ['food', () => prof.hunt && foodStock() < prof.foodWant && (cnt('berries') < 6 && core.nearest(['berry_bush'], (o) => !nearDen(o) && tileDist(o.tx, o.ty, home().cx, home().cy) < prof.maxRange) && T().toNight > 80 ? fetch('berries') : huntStep())],
       ['wear', () => { for (const id of ['fur_coat', 'fur_boots', 'fur_hat']) { const w = S().inventory.clothing.some((c) => c && c.id === id); if (!w && has(id)) { core.wear(id); return true; } } return false; }],
       ['coat', () => prof.clothing && !coatWorn('fur_coat') && has('hide', 5) && (cnt('rope') >= 2 ? craftAt('fur_coat', { hide: 5, rope: 2 }) : ropeFor(2))],
       ['boots', () => prof.clothing && !coatWorn('fur_boots') && has('hide', 3) && (cnt('rope') >= 1 ? craftAt('fur_boots', { hide: 3, rope: 1 }) : ropeFor(1))],

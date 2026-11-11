@@ -19,9 +19,10 @@ export function runOne(profile, seed, { days = 8, saveEvery = true, maxSeconds =
   game.events.on('game:over', (e) => { over = e; });
   const perDay = {}, below = { health: 0, hunger: 0, thirst: 0, warmth: 0, stamina: 0 };
   const limit = maxSeconds ?? days * TIME.dayLength;
+  const gameSecs = (st) => (st.time.day - 1) * TIME.dayLength + st.time.t - TIME.startT;   // game time (sleep runs x12)
   let tick = 0, lastDay = 1, roundTrips = 0, diverged = 0;
   const t0 = Date.now();
-  while (!over && game.state.stats.playSeconds < limit) {
+  while (!over && gameSecs(game.state) < limit) {
     bot.think();
     game.step(6); tick += 6;
     const st = game.state, p = st.player, d = st.time.day;
@@ -43,7 +44,7 @@ export function runOne(profile, seed, { days = 8, saveEvery = true, maxSeconds =
       }
     }
   }
-  const st = game.state, secs = st.stats.playSeconds;
+  const st = game.state, secs = gameSecs(st);
   return {
     profile, seed, died: !!over && over.kind === 'death', won: !!over && over.kind === 'victory', cause: over?.causeId || over?.cause || (over ? over.kind : 'alive'),
     secs, day: st.time.day, miles: bot.miles, perDay, below, roundTrips, diverged, wall: (Date.now() - t0) / 1000, notes: bot.notes, nan: bot.nan, errors: bot.errors || 0,
@@ -58,7 +59,7 @@ export function summarize(rs) {
   const surv = rs.map((r) => r.secs).sort((a, b) => a - b);
   const med = surv[Math.floor(surv.length / 2)];
   const died = rs.filter((r) => r.died).length, won = rs.filter((r) => r.won).length;
-  const dayOf = (s) => 1 + Math.floor((s + TIME.startT * 0) / TIME.dayLength);
+  const dayOf = (s) => 1 + Math.floor((s + TIME.startT) / TIME.dayLength);
   const causes = {};
   for (const r of rs) causes[r.cause] = (causes[r.cause] || 0) + 1;
   const reach = (n) => rs.filter((r) => r.day >= n || r.won).length;
