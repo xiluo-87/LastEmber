@@ -66,7 +66,7 @@ console.log('Multi-touch edge cases');
   await sleep(150);
   let s = await intent();
   check(s.mx > 0.4 && s.held, `move + hold Action at once (mx ${s.mx.toFixed(2)}, held ${s.held})`);
-  await P.touch('touchEnd', [[ax, ay, 2]]);        // the joystick finger lifts first (Playwright lists the touches that remain)
+  await P.touch('touchEnd', [[80 + 36, 600, 1]]);  // CDP touchEnd lists the points that are released: the joystick finger lifts first
   await sleep(150);
   s = await intent();
   check(Math.abs(s.mx) < 0.01 && s.held, `joystick finger lifts while Action held: stops moving, Action stays held (mx ${s.mx.toFixed(2)}, held ${s.held})`);
@@ -79,7 +79,7 @@ console.log('Multi-touch edge cases');
   await P.touch('touchStart', [[80, 560, 1], [ax, ay, 2]]);
   await P.touch('touchStart', [[80, 560, 1], [ax, ay, 2], [260, 300, 3]]);
   await sleep(100);
-  await P.touch('touchEnd', [[80, 560, 1], [ax, ay, 2]]);
+  await P.touch('touchEnd', [[260, 300, 3]]);      // only the third finger (a tap on the world) lifts
   s = await intent();
   check(s.my < -0.3 && s.held, 'three fingers: joystick and Action still held after a world tap');
   await P.touch('touchEnd', []);

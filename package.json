@@ -8,9 +8,10 @@
     "dev": "node scripts/serve.mjs",
     "build": "node scripts/build.mjs",
     "test": "node --test tests/unit/*.test.js",
-    "test:e2e": "node tests/e2e/smoke.mjs && node tests/e2e/gather-craft.mjs && node tests/e2e/building.mjs && node tests/e2e/endgame.mjs",
+    "test:e2e": "node tests/e2e/run-all.mjs",
     "sim": "node tests/sim/run.mjs --profile idle,sloppy,competent,rusher --seeds 10 --days 14",
-    "test:sim": "node --test tests/sim/sim.test.js"
+    "test:sim": "node --test tests/sim/sim.test.js",
+    "perf": "node tests/e2e/perf.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.28.2"
