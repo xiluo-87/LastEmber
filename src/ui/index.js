@@ -5,6 +5,7 @@ import { createPanels } from './panels.js';
 import { createTouch, isTouchDevice } from './touch.js';
 import { createTitle } from './title.js';
 import { PANELS } from './panels/index.js';
+import { installInventoryUi } from './inventory-ui.js';
 
 /**
  * game.ui = {
@@ -26,6 +27,7 @@ export function createUI(game, { hud: hudRoot, panels: panelsRoot, title: titleR
     update() { hud.update(); hotbar.update(); panels.update(); },
   };
   game.ui = ui;
+  installInventoryUi(game, ui);
   if (touchOn) ui.touch = createTouch(game, touchRoot, game.input);
   createTitle(game, titleRoot);
 

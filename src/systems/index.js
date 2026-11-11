@@ -14,10 +14,22 @@
 import time from './time.js';
 import player from './player.js';
 import targeting from './targeting.js';
+import interact from './interact.js';
+import gather from './gather.js';
+import items from './items.js';
+import crafting from './crafting.js';
+import weather from './weather.js';
+import survival from './survival.js';
 
 export const SYSTEMS = [
   time,
   player,
   targeting,
+  interact,   // interaction registry + swing (must precede gather/items/crafting: they register handlers in init)
+  gather,
+  items,
+  crafting,
+  weather,
+  survival,
   // append new systems below (one line each), e.g.:  weather, survival, gather, crafting, building, structures, creatures, combat, endgame, tutorial
 ];

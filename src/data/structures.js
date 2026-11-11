@@ -44,26 +44,32 @@ export const STRUCTURES = {
 // World objects that are not player-built.
 //   kind 'node' (gatherable), 'pickup' (walk-onto/instant), 'poi' (points of interest)
 //   gather: { tool (class required for `drops`), hp (work to deplete), drops:[{item,n:[min,max],chance?}],
-//             handDrops (what bare hands/other tools yield), handHp, regrowDays (node becomes depleted, regrows) }
+//             handDrops (what bare hands/other tools yield), handHp, handMax (bare-hand harvests before 'bare', default GATHER.handMaxPerTree),
+//             regrowDays (node becomes depleted, regrows), becomes (object type left behind when depleted: 'stump'|'rubble'; none = removed) }
 //   loot:  filled at gen time into obj.loot = [{item,n}] ; part: obj.part = radio part id
 //   verb:  action label shown on the Action button; interactable: can be the target
 export const NODES = {
   tree: { id: 'tree', name: 'Pine tree', kind: 'node', blocks: true, interactable: true, verb: 'Chop', variants: 3,
-    gather: { tool: 'axe', hp: 120, drops: [{ item: 'wood', n: [3, 4] }, { item: 'stick', n: [1, 2] }], handDrops: [{ item: 'stick', n: [1, 1] }], handHp: 40 } },
+    gather: { tool: 'axe', hp: 120, drops: [{ item: 'wood', n: [3, 4] }, { item: 'stick', n: [1, 2] }], handDrops: [{ item: 'stick', n: [1, 1] }], handHp: 40, becomes: 'stump' } },
   dead_bush: { id: 'dead_bush', name: 'Dead bush', kind: 'node', blocks: true, interactable: true, verb: 'Gather', variants: 3,
     gather: { hp: 12, drops: [{ item: 'stick', n: [1, 2] }, { item: 'fiber', n: [1, 2] }] } },
   rock_node: { id: 'rock_node', name: 'Boulder', kind: 'node', blocks: true, interactable: true, verb: 'Mine', variants: 3,
-    gather: { tool: 'pickaxe', hp: 90, drops: [{ item: 'stone', n: [2, 4] }, { item: 'flint', n: [1, 1], chance: 0.35 }], handDrops: [{ item: 'stone', n: [1, 1] }], handHp: 30 } },
+    gather: { tool: 'pickaxe', hp: 90, drops: [{ item: 'stone', n: [2, 4] }, { item: 'flint', n: [1, 1], chance: 0.35 }], handDrops: [{ item: 'stone', n: [1, 1] }], handHp: 30, becomes: 'rubble' } },
   iron_node: { id: 'iron_node', name: 'Iron vein', kind: 'node', blocks: true, interactable: true, verb: 'Mine', variants: 2,
-    gather: { tool: 'pickaxe', hp: 110, drops: [{ item: 'iron_ore', n: [2, 3] }] } },
+    gather: { tool: 'pickaxe', hp: 110, drops: [{ item: 'iron_ore', n: [2, 3] }], becomes: 'rubble' } },
   coal_node: { id: 'coal_node', name: 'Coal seam', kind: 'node', blocks: true, interactable: true, verb: 'Mine', variants: 2,
-    gather: { tool: 'pickaxe', hp: 90, drops: [{ item: 'coal', n: [2, 4] }] } },
+    gather: { tool: 'pickaxe', hp: 90, drops: [{ item: 'coal', n: [2, 4] }], becomes: 'rubble' } },
   berry_bush: { id: 'berry_bush', name: 'Berry bush', kind: 'node', blocks: false, interactable: true, verb: 'Pick', variants: 2,
     gather: { hp: 6, drops: [{ item: 'berries', n: [2, 4] }], regrowDays: 2 } },
   herb: { id: 'herb', name: 'Herb', kind: 'node', blocks: false, interactable: true, verb: 'Pick', variants: 2,
     gather: { hp: 4, drops: [{ item: 'herb', n: [1, 1] }] } },
   loose_stone: { id: 'loose_stone', name: 'Loose stone', kind: 'pickup', blocks: false, interactable: true, verb: 'Take', variants: 3, pickup: { item: 'stone', n: 1 } },
   loose_stick: { id: 'loose_stick', name: 'Loose stick', kind: 'pickup', blocks: false, interactable: true, verb: 'Take', variants: 3, pickup: { item: 'stick', n: 1 } },
+  // Left behind by depleted trees/rocks (gather system): walkable decor, not targetable.
+  stump: { id: 'stump', name: 'Stump', kind: 'decor', blocks: false, interactable: false, variants: 2 },
+  rubble: { id: 'rubble', name: 'Rubble', kind: 'decor', blocks: false, interactable: false, variants: 2 },
+  // Item dropped from the bag: obj = { type:'dropped_item', stack:{id,n,dur?,burn?} }. Drawn with the item icon (render/gatherfx.js).
+  dropped_item: { id: 'dropped_item', name: 'Dropped item', kind: 'pickup', blocks: false, interactable: true, verb: 'Take', variants: 1 },
   crash_site: { id: 'crash_site', name: 'Crash-site crate', kind: 'poi', blocks: true, interactable: true, verb: 'Open', variants: 1, lootable: true },
   wreckage: { id: 'wreckage', name: 'Wreckage', kind: 'poi', blocks: true, interactable: true, verb: 'Search', variants: 3, lootable: true },
   bear_den: { id: 'bear_den', name: 'Bear den', kind: 'poi', blocks: true, interactable: false, variants: 1, extra: { territory: 6, leash: 12 } },

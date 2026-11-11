@@ -58,3 +58,51 @@ export function itemIcon(id) {
   cache.set(id, c);
   return c;
 }
+
+// ---- distinct icons for items that would otherwise share a silhouette (inventory/crafting must be readable at a glance) ----
+const shine = (ctx, x1, y1, x2, y2) => line(ctx, x1, y1, x2, y2, 2.5, 'rgba(255,255,255,0.5)');
+registerIcon('iron_ore', (ctx, s, it) => {
+  SHAPES.rock(ctx, '#6f7886');
+  for (const [x, y, r] of [[26, 38, 5], [38, 34, 4.5], [32, 26, 4], [42, 42, 3.5]]) circle(ctx, x, y, r, it.color, false);
+  circle(ctx, 25, 36, 1.4, '#ffd9c2', false); circle(ctx, 37, 32, 1.3, '#ffd9c2', false);
+});
+registerIcon('coal', (ctx) => {
+  ctx.beginPath(); ctx.moveTo(14, 38); ctx.lineTo(22, 18); ctx.lineTo(40, 16); ctx.lineTo(52, 32); ctx.lineTo(44, 48); ctx.lineTo(24, 48); ctx.closePath(); fill(ctx, '#1f2933'); stroke(ctx);
+  ctx.beginPath(); ctx.moveTo(24, 22); ctx.lineTo(38, 20); ctx.lineTo(32, 32); ctx.closePath(); fill(ctx, '#3b4a5a');
+  shine(ctx, 40, 26, 46, 34);
+});
+registerIcon('hide', (ctx, s, it) => {
+  ctx.beginPath(); ctx.moveTo(14, 16); ctx.lineTo(26, 20); ctx.lineTo(38, 16); ctx.lineTo(50, 22); ctx.lineTo(46, 32); ctx.lineTo(52, 44); ctx.lineTo(38, 48); ctx.lineTo(28, 54); ctx.lineTo(20, 46); ctx.lineTo(12, 38); ctx.lineTo(18, 28); ctx.closePath();
+  fill(ctx, it.color); stroke(ctx);
+  for (const [x, y] of [[24, 28], [36, 26], [30, 38], [40, 40]]) line(ctx, x, y, x + 3, y + 5, 2, 'rgba(60,30,10,0.45)');
+});
+registerIcon('bandage', (ctx) => {
+  ctx.save(); ctx.translate(32, 32); ctx.rotate(-0.4); ctx.fillStyle = '#f3f4f6'; ctx.fillRect(-20, -12, 40, 24); stroke(ctx); ctx.restore();
+  ctx.fillStyle = '#e63946'; ctx.fillRect(28, 20, 8, 24); ctx.fillRect(20, 28, 24, 8);
+});
+registerIcon('fat', (ctx, s, it) => {
+  ctx.beginPath(); ctx.moveTo(16, 40); ctx.quadraticCurveTo(14, 20, 32, 20); ctx.quadraticCurveTo(52, 18, 50, 38); ctx.quadraticCurveTo(46, 50, 30, 48); ctx.quadraticCurveTo(18, 48, 16, 40); fill(ctx, it.color); stroke(ctx);
+  circle(ctx, 26, 30, 3.5, '#fff7d6', false); circle(ctx, 40, 36, 2.5, '#e6cf8a', false);
+});
+registerIcon('wood', (ctx, s, it) => { // two stacked logs with end rings: clearly "wood", unlike the single thin stick
+  for (const [y, c] of [[40, '#8b5a2b'], [26, '#9a6a36']]) { ctx.fillStyle = c; ctx.fillRect(10, y - 8, 36, 16); stroke(ctx); circle(ctx, 46, y, 8, '#d9b383'); circle(ctx, 46, y, 3.5, '#b98a55', false); }
+});
+registerIcon('arrow', (ctx) => {
+  line(ctx, 12, 52, 46, 18, 3, '#a9744a');
+  ctx.beginPath(); ctx.moveTo(56, 8); ctx.lineTo(50, 24); ctx.lineTo(40, 14); ctx.closePath(); fill(ctx, '#9aa5b1'); stroke(ctx, 2);
+  line(ctx, 14, 50, 8, 44, 3, '#e63946'); line(ctx, 18, 54, 12, 48, 3, '#e63946');
+});
+registerIcon('raw_meat', (ctx, s, it) => { SHAPES.meat(ctx, it.color); line(ctx, 22, 28, 34, 40, 2.5, '#f3c7c7'); line(ctx, 30, 24, 40, 34, 2, '#f3c7c7'); });
+registerIcon('cooked_meat', (ctx, s, it) => { SHAPES.meat(ctx, it.color); for (const x of [22, 30, 38]) line(ctx, x, 24, x + 8, 40, 2.5, 'rgba(30,12,4,0.55)'); });
+registerIcon('raw_fish', (ctx, s, it) => { SHAPES.fish(ctx, it.color); line(ctx, 28, 24, 28, 40, 2, 'rgba(255,255,255,0.55)'); line(ctx, 34, 25, 34, 39, 2, 'rgba(255,255,255,0.55)'); });
+registerIcon('cooked_fish', (ctx, s, it) => { SHAPES.fish(ctx, it.color); for (const x of [26, 32, 38]) line(ctx, x, 24, x - 4, 40, 2.5, 'rgba(60,25,5,0.6)'); });
+registerIcon('snow_water', (ctx, s, it) => { SHAPES.drop(ctx, it.color); for (const [x, y] of [[34, 44], [38, 38], [30, 32]]) circle(ctx, x, y, 1.8, '#6b5a43', false); });
+registerIcon('clean_water', (ctx, s, it) => { SHAPES.drop(ctx, it.color); line(ctx, 46, 14, 46, 24, 2.5, '#fff'); line(ctx, 41, 19, 51, 19, 2.5, '#fff'); });
+registerIcon('jerky', (ctx, s, it) => { for (const [y, r] of [[24, -0.3], [40, -0.15]]) { ctx.save(); ctx.translate(32, y); ctx.rotate(r); ctx.fillStyle = it.color; ctx.fillRect(-22, -6, 44, 12); stroke(ctx); ctx.restore(); } });
+registerIcon('iron_axe', (ctx, s, it) => { SHAPES.axe(ctx, it.color); shine(ctx, 42, 16, 52, 24); });
+registerIcon('iron_pickaxe', (ctx, s, it) => { SHAPES.pick(ctx, it.color); shine(ctx, 32, 12, 44, 12); });
+registerIcon('iron_spear', (ctx, s, it) => { SHAPES.spear(ctx, it.color); shine(ctx, 50, 12, 52, 20); });
+registerIcon('stone_axe', (ctx, s, it) => { SHAPES.axe(ctx, it.color); circle(ctx, 48, 24, 2, 'rgba(255,255,255,0.35)', false); line(ctx, 34, 36, 40, 32, 3, '#c8a46a'); });
+registerIcon('stone_pickaxe', (ctx, s, it) => { SHAPES.pick(ctx, it.color); line(ctx, 34, 34, 40, 30, 3, '#c8a46a'); });
+registerIcon('worn_jacket', (ctx, s, it) => { SHAPES.coat(ctx, it.color); ctx.fillStyle = '#5a2a1c'; ctx.fillRect(28, 12, 8, 6); line(ctx, 20, 40, 44, 40, 2, 'rgba(0,0,0,0.3)'); });
+registerIcon('fur_coat', (ctx, s, it) => { SHAPES.coat(ctx, it.color); for (let x = 22; x <= 42; x += 5) line(ctx, x, 52, x + 1, 56, 3, '#f2e9d0'); line(ctx, 22, 14, 42, 14, 4, '#f2e9d0'); });

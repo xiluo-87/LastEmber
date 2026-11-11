@@ -110,3 +110,18 @@ export const WORLD_GEN = {
 
 export const SAVE = { key: 'last-ember-save-v1', version: 1, autosaveSeconds: 60 };
 export const STATE_VERSION = 1;
+
+// ---- interaction / gathering / item use / crafting (interact, gather, items, crafting systems) ----
+// SWING: one swing = windup (until impact) + recovery. Total swing time per tool class; stamina cost is SURVIVAL.swingStamina.
+//   When stamina is 0 swings are 40% slower (DESIGN §5). `impact` is the fraction of the swing at which the hit lands.
+export const SWING = {
+  time: { hands: 0.45, axe: 0.55, pickaxe: 0.6, spear: 0.5, bow: 0.7, torch: 0.45 },
+  impact: 0.35, slowMult: 1 / 0.6, arcHalfDeg: 50, pickupCooldown: 0.25, openCooldown: 0.4, itemUseCooldown: 0.3,
+};
+// GATHER: durability per successful hit with the matching tool; hand harvests allowed per tree before it is "bare";
+// loose-pickup / FX tuning.
+export const GATHER = {
+  durPerHit: 1, handMaxPerTree: 4, shakeSeconds: 0.22, shakePx: 2.4, floatSeconds: 1.1, chips: 5,
+  dropSearchRadius: 2,   // tiles around the player searched for a free tile when dropping an item
+};
+export const ITEM_USE = { torchWarnSeconds: 20, eatSnow: { thirst: 8, warmth: -10 } };

@@ -3,3 +3,4 @@ import './terrain.js';
 import './nature.js';
 import './pois.js';
 import './player.js';
+import './gathered.js';
