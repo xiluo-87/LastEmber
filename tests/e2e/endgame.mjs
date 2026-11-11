@@ -74,8 +74,17 @@ async function approach(type) {
 }
 for (const type of ['loose_stick', 'loose_stick', 'loose_stick', 'loose_stone', 'loose_stone', 'loose_stone']) {
   await approach(type);
-  await page.waitForFunction((t) => __game.target?.obj?.type === t, type, { timeout: 3000 });
-  await tap('.tbtn-action');
+  const id = type === 'loose_stick' ? 'stick' : 'stone';
+  const before = await count(id);
+  // A pickup sets SWING.pickupCooldown (0.25 s game time); a tap that lands inside it is swallowed by design,
+  // so retry until this pickup registers instead of assuming one tap = one item.
+  let got = false;
+  for (let attempt = 0; attempt < 6 && !got; attempt++) {
+    await page.waitForFunction((t) => __game.target?.obj?.type === t, type, { timeout: 3000 });
+    await tap('.tbtn-action');
+    got = (await count(id)) > before;
+  }
+  check(got, `tap picked up a ${id}`);
 }
 await sleep(500);
 check((await count('stick')) >= 3 && (await count('stone')) >= 3, `picked up sticks=${await count('stick')} stones=${await count('stone')}`);
