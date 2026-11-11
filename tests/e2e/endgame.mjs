@@ -77,6 +77,7 @@ for (const type of ['loose_stick', 'loose_stick', 'loose_stick', 'loose_stone', 
   await page.waitForFunction((t) => __game.target?.obj?.type === t, type, { timeout: 3000 });
   await tap('.tbtn-action');
 }
+await sleep(500);
 check((await count('stick')) >= 3 && (await count('stone')) >= 3, `picked up sticks=${await count('stick')} stones=${await count('stone')}`);
 await page.waitForFunction(() => document.querySelector('.objective.ticking'), null, { timeout: 4000 }).catch(() => {});
 await shot('04-tracker-tick');
