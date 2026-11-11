@@ -92,10 +92,14 @@ function computeMarkers(game, out = []) {
   const st = game.state, eg = st?.endgame, rt = game.endgameRt, R = game.renderer, v = game.view;
   if (!eg || !R || !v || game.mode !== 'playing') return out;
   const hasMap = count(st.inventory, 'flight_map') > 0;
-  const p = st.player, inset = { top: 56, bottom: document.body.classList.contains('touch') ? 96 : 76, left: 0, right: 0 };
+  const p = st.player, touch = document.body.classList.contains('touch'), inset = { top: 56, bottom: touch ? 96 : 76, left: 0, right: 0 };
   const place = (kind, key, tx, ty, label) => {
     const c = game.world.tileCenter(tx, ty), s = R.worldToScreen(c.x, c.y);
     const m = edgeMarker(s.x, s.y, v.w, v.h, ENDGAME.markerPad, inset);
+    if (m && touch && m.x > v.w - ENDGAME.touchBox.w && m.y > v.h - ENDGAME.touchBox.h) {   // keep clear of the Action/Bag/Build/Use cluster
+      const up = m.y - (v.h - ENDGAME.touchBox.h), left = m.x - (v.w - ENDGAME.touchBox.w);
+      if (up <= left) m.y = v.h - ENDGAME.touchBox.h; else m.x = v.w - ENDGAME.touchBox.w;
+    }
     if (m) out.push({ kind, key, x: m.x, y: m.y, angle: m.angle, dist: tilesBetween(p.x, p.y, c.x, c.y), label });
   };
   for (const w of visibleWrecks(rt.wrecks, eg.seen, hasMap)) place('wreck', wreckKey(w), w.tx, w.ty, 'Wreck');
@@ -159,6 +163,7 @@ export default {
       if (r.done) startRescue(game);
     });
     game.events.on('game:over', () => { game.endgameRt.rescue = null; });
+    for (const e of ['game:new', 'game:loaded', 'game:title']) game.events.on(e, () => { game.endgameRt.victory = false; });
     game.events.on('game:loaded', () => { if (E(game).rescuePending) startRescue(game); });   // saved at the dawn of the rescue
   },
   onLoad(game) {
@@ -177,7 +182,7 @@ export default {
       st.player.invuln = Math.max(st.player.invuln || 0, 0.5);
       if (!r.flew && r.t >= RESCUE.swell) { r.flew = true; game.events.emit('rescue:flyover', {}); }
       if (r.t >= RESCUE.swell + RESCUE.plane + RESCUE.fade) {
-        rt.rescue = null; game.events.emit('rescue:done', {});
+        rt.rescue = null; rt.victory = true; game.events.emit('rescue:done', {});
         game.end('victory', { cause: 'The rescue plane saw your signal. You made it out alive.', extra: { playSeconds: st.stats.playSeconds } });
       }
       return;
@@ -219,6 +224,7 @@ export default {
   },
 
   drawScreen(game, ctx, w, h) {
+    if (game.mode === 'over' && game.endgameRt?.victory) { ctx.fillStyle = 'rgba(6,10,16,0.8)'; ctx.fillRect(0, 0, w, h); return; }   // victory screen sits on the faded world
     const rs = game.endgameRt?.rescue; if (!rs || game.mode !== 'playing') return;
     const t = rs.t, swell = RESCUE.swell, flyEnd = swell + RESCUE.plane;
     if (t > swell * 0.5 && t < flyEnd) { ctx.fillStyle = `rgba(180,210,255,${0.06 * Math.min(1, (t - swell * 0.5) / (swell * 0.5))})`; ctx.fillRect(0, 0, w, h); }

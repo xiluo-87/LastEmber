@@ -46,19 +46,19 @@ export function createTitle(game, root) {
     const t = now / 1000, dt = Math.min(0.05, last ? t - last : 0.016); last = t;
     if (!W || W !== (root.clientWidth || window.innerWidth)) size();
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const sky = g.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#0a1018'); sky.addColorStop(1, '#16222f');
+    const sky = g.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#0a1018'); sky.addColorStop(1, '#1a2431');
     g.fillStyle = sky; g.fillRect(0, 0, W, H);
     // ember glow: layered flicker
-    const cx = W / 2, cy = H * 0.62, fl = 0.85 + 0.1 * Math.sin(t * 7.3) + 0.06 * Math.sin(t * 17.1 + 1) + 0.05 * Math.sin(t * 3.1);
-    const R = Math.max(W, H) * 0.55 * fl;
+    const cx = W / 2, cy = H * 0.27, fl = 0.85 + 0.1 * Math.sin(t * 7.3) + 0.06 * Math.sin(t * 17.1 + 1) + 0.05 * Math.sin(t * 3.1);
+    const R = Math.max(W, H) * 0.5 * fl;
     const glow = g.createRadialGradient(cx, cy, 0, cx, cy, R);
     glow.addColorStop(0, 'rgba(255,159,28,0.34)'); glow.addColorStop(0.35, 'rgba(231,29,54,0.13)'); glow.addColorStop(1, 'rgba(16,24,32,0)');
     g.fillStyle = glow; g.fillRect(0, 0, W, H);
     // snowy ground line + the ember itself
     g.fillStyle = 'rgba(210,222,235,0.07)'; g.beginPath(); g.ellipse(cx, H + 20, W * 0.8, H * 0.32, 0, 0, 6.29); g.fill();
-    const flame = g.createRadialGradient(cx, cy, 0, cx, cy, 22 * fl);
+    const flame = g.createRadialGradient(cx, cy, 0, cx, cy, 26 * fl);
     flame.addColorStop(0, 'rgba(255,230,160,0.95)'); flame.addColorStop(0.4, 'rgba(255,159,28,0.8)'); flame.addColorStop(1, 'rgba(231,29,54,0)');
-    g.fillStyle = flame; g.beginPath(); g.ellipse(cx, cy, 16 * fl, 24 * fl, 0, 0, 6.29); g.fill();
+    g.fillStyle = flame; g.beginPath(); g.ellipse(cx, cy, 15 * fl, 24 * fl, 0, 0, 6.29); g.fill();
     // rising sparks
     if (Math.random() < dt * 9 && sparks.length < 40) sparks.push({ x: cx + (Math.random() - 0.5) * 24, y: cy, vx: (Math.random() - 0.5) * 18, vy: -(26 + Math.random() * 40), life: 0, max: 1.6 + Math.random() * 1.4 });
     for (let i = sparks.length - 1; i >= 0; i--) {

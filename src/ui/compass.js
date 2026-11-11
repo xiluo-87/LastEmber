@@ -1,7 +1,7 @@
 // Screen-edge compass markers (DESIGN §10): wreckage sites (flight map / proximity) and the "home" campfire when off-screen.
 // Data comes from game.endgame.markers() (systems/endgame.js, pure rules in logic/endgame.js). Also fades the HUD during the rescue.
 const ICON = {
-  wreck: '<svg viewBox="0 0 24 24"><path d="M21 12 14 9V4l-2 1v4l-8 3 8 3v4l2 1v-5z" fill="currentColor"/></svg>',
+  wreck: '<svg viewBox="0 0 24 24"><path d="M22 11 15 10 11 3H8l2 7-5 1-2-3H1l1 4-1 4h2l2-3 5 1-2 7h3l4-7 7-1z" fill="currentColor"/></svg>',
   home: '<svg viewBox="0 0 24 24"><path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3.500 2-4.500 0 2 1 3 2 3 0-4-1-6 1-9.500z" fill="currentColor"/></svg>',
 };
 

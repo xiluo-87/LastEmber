@@ -43,6 +43,10 @@ export function createHud(game, root) {
   function pump() {
     while (visible.length < TOASTS.maxVisible && queue.length) {
       const q = queue.shift(), t = document.createElement('div'), rec = { msg: q.msg };
+      if (!visible.length) {   // phone portrait: the stack starts below the stat bars / objective / chips, wherever those currently end
+        const narrow = typeof matchMedia !== 'undefined' && matchMedia('(max-width: 799px) and (orientation: portrait)').matches;
+        toasts.style.top = narrow ? `${Math.ceil($('.hud-stats').getBoundingClientRect().bottom + 8)}px` : '';
+      }
       t.className = `toast ${q.kind}`; t.textContent = q.msg; toasts.appendChild(t); visible.push(rec);
       setTimeout(() => { t.classList.add('out'); setTimeout(() => { t.remove(); visible.splice(visible.indexOf(rec), 1); pump(); }, 350); }, queue.length > 1 ? q.ms * 0.6 : q.ms);
     }

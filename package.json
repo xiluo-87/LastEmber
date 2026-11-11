@@ -8,7 +8,7 @@
     "dev": "node scripts/serve.mjs",
     "build": "node scripts/build.mjs",
     "test": "node --test tests/unit/*.test.js",
-    "test:e2e": "node tests/e2e/smoke.mjs && node tests/e2e/gather-craft.mjs && node tests/e2e/building.mjs"
+    "test:e2e": "node tests/e2e/smoke.mjs && node tests/e2e/gather-craft.mjs && node tests/e2e/building.mjs && node tests/e2e/endgame.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.28.2"
