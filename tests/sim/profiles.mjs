@@ -1,6 +1,6 @@
 // Bot play profiles. Every number is a knob of the policy in goals.mjs (thresholds are stat values 0..100, times in seconds).
 const base = {
-  eatBelow: 50, drinkBelow: 55, warmBelow: 40, warmUntil: 65,
+  eatBelow: 50, drinkBelow: 55, warmBelow: 34, warmUntil: 58,
   base: true,            // builds a campfire base near spawn
   walls: true,           // walls + door room around the fire
   workbench: true, bedroll: true, clothing: true, hunt: true, snares: true, rack: true, chest: true, torches: true,
@@ -13,6 +13,8 @@ const base = {
   maxRange: 38,          // tiles from home for ordinary gathering
   stone: true, spikes: true, iron: true, expeditions: true, endgame: true, sleep: true,
   daysSafe: 99,
+  defend: true,          // shared defender policy at night / when wolves are near the base
+  sleepUntilDay: 8,      // no sleeping from this day on (defend instead)
 };
 
 export const PROFILES = {
@@ -20,10 +22,10 @@ export const PROFILES = {
   // lights a fire and eats/drinks reactively, but never builds walls, never makes clothing, never stockpiles
   sloppy: { ...base, walls: false, workbench: false, bedroll: false, clothing: false, snares: false, rack: false, chest: false, torches: false,
     stockpileWood: 0, fuelReserve: 60, nightFuel: false, retreatDusk: 0, eatBelow: 30, drinkBelow: 35, warmBelow: 30, warmUntil: 55, fightHp: 25,
-    stone: false, spikes: false, iron: false, expeditions: false, endgame: false, sleep: false, maxRange: 30 },
+    stone: false, spikes: false, iron: false, expeditions: false, endgame: false, sleep: false, defend: false, maxRange: 30 },
   // the full policy: fire -> axe -> stockpile -> walled room -> pickaxe -> water/food loops -> bed -> clothing -> upgrades -> iron -> radio
   competent: { ...base },
   // ignores the base after the first fire: straight to iron and the three wreckage sites, then builds the tower
   rusher: { ...base, walls: false, workbench: true, bedroll: false, clothing: false, snares: false, rack: false, chest: false, torches: false,
-    stockpileWood: 8, fuelReserve: 120, nightFuel: true, retreatDusk: 20, stone: false, spikes: false, sleep: false, rusher: true, maxRange: 60 },
+    stockpileWood: 8, fuelReserve: 120, nightFuel: true, retreatDusk: 20, stone: false, spikes: false, sleep: false, defend: false, rusher: true, maxRange: 60 },
 };

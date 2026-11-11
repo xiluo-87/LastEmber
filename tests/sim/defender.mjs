@@ -46,7 +46,9 @@ export function createDefender(game, core, base, cfg = {}) {
     for (const [types, tx, ty] of base.layout()) {
       const alts = Array.isArray(types) ? types : [types];
       if (alts[0] === 'spike_barricade' || alts[0] === 'torch_post') continue;
-      const o = W().objectAt(tx, ty); if (o) continue;
+      const o = W().objectAt(tx, ty);
+      if (o && o.type === 'dropped_item') { if (core.distTilesTo(tx, ty) > 1.2) { goInside(`pick:${tx},${ty}`, ...nearestInterior(tx, ty)); return true; } core.work(o, { press: true }); return true; }
+      if (o) continue;
       const type = alts.find((t) => core.canAfford(t));
       if (!type) continue;
       if (core.distTilesTo(tx, ty) > 2.6) { goInside(`rb:${tx},${ty}`, ...nearestInterior(tx, ty)); return true; }
@@ -64,7 +66,17 @@ export function createDefender(game, core, base, cfg = {}) {
     if (game.sleep?.active) return 'sleep';
     if (p.status?.bleeding && has('bandage')) { core.use('bandage'); st.acts.bandage++; return 'vitals'; }
     if (p.hunger < 45) for (const f of ['cooked_meat', 'jerky', 'cooked_fish']) if (has(f)) { core.use(f); return 'vitals'; }
-    if (p.thirst < 45) for (const dr of ['clean_water', 'herbal_tea']) if (has(dr)) { core.use(dr); return 'vitals'; }
+    if (p.thirst < 45) {
+      for (const dr of ['clean_water', 'herbal_tea']) if (has(dr)) { core.use(dr); return 'vitals'; }
+      if (p.thirst < 18 && has('snow_water')) { core.use('snow_water'); return 'vitals'; }
+      const f0 = fire();
+      if (f0 && f0.lit && has('tin_pot')) {                      // melt and boil snow at the fire (instant craft, needs to stand beside it)
+        if (core.distTilesTo(f0.tx, f0.ty) > 2.2) { goInside('drink', f0.tx, f0.ty + 1); return 'vitals'; }
+        if (has('snow_water') && core.canCraft('clean_water')) { core.craft('clean_water'); return 'vitals'; }
+        if (core.canCraft('snow_water')) { core.craft('snow_water'); return 'vitals'; }
+      }
+    }
+    if (p.hunger < 40 && has('raw_meat') && fire()?.lit && core.canCraft('cooked_meat')) { if (core.distTilesTo(base.cx, base.cy) > 2.2) goInside('cook', base.cx, base.cy + 1); else core.craft('cooked_meat'); return 'vitals'; }
     const near = hostiles().filter((h) => h.d <= 9);
     const f = fire();
     if (f && (has('wood') || has('stick')) && ((f.fuel < 260 && !(near.length && near[0].d < 3.2)) || f.fuel < 100)) {

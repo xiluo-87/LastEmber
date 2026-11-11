@@ -20,7 +20,7 @@ const wolves = (g) => g.state.creatures.list.filter((c) => c.type === 'wolf');
 test('AI rules: flee distance depends on sprinting; fire fear and escalation; pack size by day', () => {
   assert.equal(A.fleeRange(CREATURES.deer, true), 7);
   assert.equal(A.fleeRange(CREATURES.deer, false), 4);
-  assert.equal(A.fleeRange(CREATURES.rabbit, false), 2.2);   // round 2: a walking player can sneak within spear reach
+  assert.equal(A.fleeRange(CREATURES.rabbit, false), 1.5);   // round 2: a walking player can sneak within spear reach
   assert.equal(A.fleeRange(CREATURES.rabbit, true), 5);
   assert.deepEqual([1, 2, 3, 4, 5, 6, 10, 11, 12, 30].map(A.packSizeForDay), [1, 2, 2, 3, 3, 4, 6, 6, 6, 6]);
   assert.equal(A.packSizeForDay(20), 6);

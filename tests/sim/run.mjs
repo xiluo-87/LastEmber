@@ -17,7 +17,15 @@ export function memStorage() { const m = new Map(); return { getItem: (k) => (m.
 export const LATE_KIT = [['stone_axe', 1], ['stone_pickaxe', 1], ['spear', 1], ['bow', 1], ['fur_coat', 1], ['fur_boots', 1], ['fur_hat', 1], ['arrow', 12], ['wood', 20], ['stone', 20], ['stick', 20],
   ['rope', 6], ['iron_ingot', 8], ['radio_antenna', 1], ['radio_battery', 1], ['radio_circuit', 1], ['cooked_meat', 12], ['flint', 2], ['fiber', 6]];
 
-export function runOne(profile, seed, { days = 8, saveEvery = true, maxSeconds = null, overrides = null, scenario = null } = {}) {
+/** HARNESS ASSIST (clearly not gameplay): at the start of day `giveDay` put the iron/parts the tower needs into the bag, so the bot's own endgame play
+ *  (tower near the fire, transmit, hold 3 signal nights) can be measured without the iron logistics the bot is still bad at. */
+export const GIVE_KIT = [['iron_ingot', 10], ['rope', 3], ['wood', 12]];
+const giveKit = (game) => {
+  const inv0 = game.state.inventory;
+  for (const [id, n] of GIVE_KIT) { const have = inv0.bag.concat(inv0.hotbar).reduce((a, x) => a + (x && x.id === id ? x.n : 0), 0); if (have < n) addItem(inv0, id, n - have); }
+  for (const id of ['radio_antenna', 'radio_battery', 'radio_circuit']) { const have = inv0.bag.concat(inv0.hotbar).some((x) => x && x.id === id); if (!have) addItem(inv0, id, 1); }
+};
+export function runOne(profile, seed, { days = 8, saveEvery = true, maxSeconds = null, overrides = null, scenario = null, giveDay = 0 } = {}) {
   const game = createGame({ storage: memStorage() });
   game.newGame(seed);
   if (scenario === 'late') {
@@ -43,6 +51,7 @@ export function runOne(profile, seed, { days = 8, saveEvery = true, maxSeconds =
     for (const k of STATS) { const v = p[k]; row.min[k] = Math.min(row.min[k] ?? 100, v); row.sum[k] = (row.sum[k] || 0) + v; if (v < 25) below[k] += 0.1 * (st.time.speed || 1); if (!Number.isFinite(v)) bot.nan = k; }
     if (d !== lastDay) {
       lastDay = d;
+      if (giveDay && d === giveDay) giveKit(game);
       if (saveEvery && !over) {            // save -> load round trip, then keep playing from the loaded state
         const before = JSON.stringify(game.state.player), pos = { ...game.state.player };
         game.save();
@@ -102,7 +111,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const overrides = args.set ? Object.fromEntries(String(args.set).split(',').map((kv) => { const [k, v] = kv.split('='); return [k, v === 'true' ? true : v === 'false' ? false : Number.isNaN(+v) ? v : +v]; })) : null;
     const rs = [];
     for (let s = first; s < first + n; s++) {
-      const r = runOne(pf, s, { days, overrides, scenario: args.scenario || null });
+      const r = runOne(pf, s, { days, overrides, scenario: args.scenario || null, giveDay: +(args.give || 0) });
       rs.push(r);
       if (!args.quiet) console.log(`  ${pf} seed ${s}: ${r.won ? 'WON' : r.died ? 'died' : 'alive'} t=${f(r.secs)}s day ${r.day} ${r.cause} | fire ${f(r.miles.fire)} axe ${f(r.miles.axe)} shelter ${f(r.miles.shelter)} meal ${f(r.miles.meal)} | wall ${f(r.wall, 1)}s${r.errors ? ' ERR' + r.errors : ''}${r.status ? ' last:' + r.status : ''}`);
     }
