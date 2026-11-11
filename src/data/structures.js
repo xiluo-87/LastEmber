@@ -32,7 +32,7 @@ export const STRUCTURES = {
     process: { in: 'raw_meat', out: 'jerky', seconds: 120, slots: 3 } },
   snare: { id: 'snare', interactable: true, name: 'Snare', cost: c(['stick', 2], ['rope', 1]), hp: 10, blocks: false, color: '#a9744a',
     minFireDist: 6, extra: { dawnChance: 0.5, drops: c(['raw_meat', 1], ['hide', 1]) } },
-  spike_barricade: { id: 'spike_barricade', spikes: true, name: 'Spike barricade', cost: c(['stick', 3], ['wood', 1]), hp: 60, blocks: true, color: '#a9744a', extra: { contactDps: 8 } },
+  spike_barricade: { id: 'spike_barricade', spikes: true, name: 'Spike barricade', cost: c(['stick', 3], ['wood', 1]), hp: 60, blocks: true, color: '#a9744a', extra: { contactDps: 3.5 } },
   torch_post: { id: 'torch_post', interactable: true, name: 'Torch post', cost: c(['stick', 2], ['fat', 1]), hp: 20, blocks: true, color: '#ff9f1c',
     fuel: { accepts: ['fat', 'coal'], max: 300 }, light: { radius: 4, flicker: 0.12 }, extra: { burnSeconds: 300 } },
   fishing_hole: { id: 'fishing_hole', interactable: true, name: 'Fishing hole', cost: c(['stick', 1]), hp: 0, blocks: false, color: '#2b6f8f',

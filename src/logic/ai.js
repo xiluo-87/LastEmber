@@ -8,6 +8,16 @@ export function angDiff(a, b) { let d = a - b; while (d > Math.PI) d -= TAU; whi
 /** Wolf pack size at night: 1 + floor(day/2), capped at 6. */
 export const packSizeForDay = (day) => WOLF.packSize(day);
 
+/**
+ * Size of the next natural wolf pack tonight (0 = none). The first pack is the full size for the day; a second one (after the first is gone)
+ * is only a fraction of it (plateau), and never on a signal night: the enraged waves take its place.
+ */
+export function nextNightPack({ day, packsTonight, signal = false, maxPacks = 2 }) {
+  if (packsTonight <= 0) return packSizeForDay(day);
+  if (signal || packsTonight >= maxPacks) return 0;
+  return Math.max(1, Math.ceil(packSizeForDay(day) * WOLF.secondPackFrac));
+}
+
 /** Distance (tiles) at which a prey animal flees. Sprinting players alarm deer from further away (sneak range when not sprinting). */
 export function fleeRange(def, playerSprinting) {
   const f = def && def.flee;

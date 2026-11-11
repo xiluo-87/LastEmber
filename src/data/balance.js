@@ -95,6 +95,7 @@ export const WOLF = {
   packSize: (day) => Math.min(6, 1 + Math.floor(day / 2)),
   attackStructuresFromDay: 5, ignoreFireFromDay: 8, ignoreFireMinPack: 4,
   dayAttackBelowHp: 40, nightHuntRadius: 10, fleeHpFrac: 0.3,
+  secondPackFrac: 0.5,              // a second natural pack on the same night is this fraction of the full pack (none on a signal night)
 };
 export const SPAWN = { minDistFromPlayer: 14, caps: { rabbit: 14, deer: 8, creatures: 40 } };
 

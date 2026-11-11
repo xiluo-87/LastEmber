@@ -26,7 +26,7 @@ export const KITS = {
   bow: { weapon: 'spear', bow: true },        // bow + 24 arrows + stone spear as the backup
   iron_bow: { weapon: 'iron_spear', bow: true },
 };
-const STOCK = { wood: 60, stone: 24, stick: 20, cooked_meat: 14, clean_water: 14, bandage: 6 };
+const STOCK = { wood: 40, stone: 24, stick: 24, cooked_meat: 14, clean_water: 14, bandage: 6, fat: 8 };
 
 function fillKit(game, cfg) {
   const I = game.state.inventory, k = KITS[cfg.kit || 'stone_spear'];
@@ -72,6 +72,32 @@ export function buildBase(game, cfg) {
   put(game, 'workbench', cx - 1, cy - 1);
   game.building.onLoad?.(game);               // rebuild room index after bulk edits
   return { cx, cy, d, fire };
+}
+
+/** The intended layout of the base as [type, tx, ty] (used to rebuild what wolves destroyed). */
+export function layout(base, cfg) {
+  const { cx, cy, d } = base, out = [];
+  const wall = cfg.wall === 'stone' ? 'stone_wall' : 'wood_wall';
+  const ring = (dist, fn) => { for (let dx = -dist; dx <= dist; dx++) for (let dy = -dist; dy <= dist; dy++) if (Math.max(Math.abs(dx), Math.abs(dy)) === dist && !(Math.abs(dx) === dist && Math.abs(dy) === dist)) fn(dx, dy); };
+  ring(d, (dx, dy) => out.push([dx === 0 && dy === d ? 'door' : wall, cx + dx, cy + dy]));
+  if (cfg.spikes) ring(d + 1, (dx, dy) => { if (!(cfg.spikeGap && dx === 0 && dy === d + 1)) out.push(['spike_barricade', cx + dx, cy + dy]); });
+  if (cfg.torches) for (const [sx, sy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) out.push(['torch_post', cx + sx * d, cy + sy * d]);
+  return out;
+}
+/** Day-time upkeep (harness shortcut): repair everything that is damaged and rebuild what is missing, paying the real material costs. Fills `spent`. */
+export function maintain(game, base, cfg, spent) {
+  const I = game.state.inventory;
+  const pay = (id, n) => { spent[id] = (spent[id] || 0) + n; };
+  for (const [type, tx, ty] of layout(base, cfg)) {
+    const def = STRUCTURES[type], o = game.world.objectAt(tx, ty);
+    if (o && o.type === type) {
+      if (type === 'torch_post') { while (o.fuel < 280 && inv.count(I, 'fat') > 0) { inv.remove(I, 'fat', 1); o.fuel += 150; pay('fat', 1); } if (o.fuel > 0) o.lit = true; continue; }
+      let guard = 0; while ((o.hp ?? def.hp) < def.hp * 0.9 && guard++ < 6) { const mat = { wood_wall: 'wood', stone_wall: 'stone', door: 'wood', spike_barricade: 'wood' }[type]; if (!inv.remove(I, mat, 1)) break; o.hp = Math.min(def.hp, o.hp + def.hp * 0.5); pay(mat, 1); }
+    } else if (!o || o.type === 'dropped_item') {
+      if (inv.removeAll(I, def.cost)) { for (const c of def.cost) pay(c.item, c.n); put(game, type, tx, ty); }
+    }
+  }
+  game.building.onLoad?.(game);
 }
 
 export function newScenario(seed, cfg) {
@@ -130,6 +156,19 @@ function createDefender(game, base, cfg) {
     if (game.time >= st.repT) { st.repT = game.time + 0.45; if (game.structures.repair(o).ok) st.acts.repair++; }
     return true;
   }
+  function rebuildStep() {          // put a missing wall/door back (only when no creature is on or next to the tile)
+    for (const [type, tx, ty] of layout(base, cfg)) {
+      if (type === 'spike_barricade' || type === 'torch_post') continue;
+      const o = W().objectAt(tx, ty); if (o) continue;
+      if (!core.canAfford(type)) continue;
+      if (core.distTilesTo(tx, ty) > 2.6) { goInside(`rb:${tx},${ty}`, ...nearestInterior(tx, ty)); return true; }
+      nav.stop();
+      if (game.building.validate(type, tx, ty).ok && core.place(type, tx, ty)) { st.acts.rebuild = (st.acts.rebuild || 0) + 1; return true; }
+      return false;
+    }
+    return false;
+  }
+  function nearestInterior(tx, ty) { let best = interior[0], bd = 1e9; for (const t of interior) { if (!walkable(t.tx, t.ty)) continue; const dd = tileDist(t.tx, t.ty, tx, ty); if (dd < bd) { bd = dd; best = t; } } return [best.tx, best.ty]; }
   function hostiles() { return core.hostiles(14).filter((h) => h.c.type === 'wolf'); }
   const LOS = (c) => { const p = P(); const n = Math.ceil(Math.hypot(c.x - p.x, c.y - p.y) / 8); for (let i = 1; i < n; i++) if (W().isBlockedAtPx(p.x + ((c.x - p.x) * i) / n, p.y + ((c.y - p.y) * i) / n)) return false; return true; };
 
@@ -149,6 +188,8 @@ function createDefender(game, base, cfg) {
       if (!f.lit && f.fuel > 0) game.structures.light(f);
       st.acts.fuel++; return;
     }
+    // 2b a breach: rebuild between lunges
+    if (cfg.rebuild !== false && !(near.length && near[0].d < 2.4) && rebuildStep()) return;
     // 3 fight
     if (near.length) {
       const { c, d: dist } = near[0];
@@ -183,13 +224,13 @@ function createDefender(game, base, cfg) {
 export function runNight(seed, cfg) {
   const { game, base } = newScenario(seed, cfg);
   const def = createDefender(game, base, cfg), core = def.core;
-  const r = { seed, hpLost: 0, minHp: 100, walls: 0, wallsByType: {}, spikesLost: 0, wolvesKilled: 0, wolvesBySpikes: 0, maxWolves: 0, died: false, won: false, cause: 'alive', nights: 0, towerLost: false, over: null };
+  const r = { seed, hpLost: 0, minHp: 100, walls: 0, wallsByType: {}, spikesLost: 0, wolvesKilled: 0, wolvesBySpikes: 0, maxWolves: 0, died: false, won: false, cause: 'alive', nights: 0, towerLost: false, over: null, spent: {} };
   const startDay = cfg.day, nights = cfg.nights || 1;
   game.events.on('player:damaged', ({ amount }) => { r.hpLost += amount; });
   game.events.on('structure:destroyed', ({ type }) => { if (type === 'radio_tower') r.towerLost = true; else if (type === 'spike_barricade') r.spikesLost++; else { r.walls++; r.wallsByType[type] = (r.wallsByType[type] || 0) + 1; } });
   game.events.on('creature:killed', ({ c, by }) => { if (c.type === 'wolf') { r.wolvesKilled++; if (by === 'spikes') r.wolvesBySpikes++; } });
   game.events.on('game:over', (e) => { r.over = e; r.died = e.kind === 'death'; r.won = e.kind === 'victory'; r.cause = e.causeId || e.cause || e.kind; });
-  game.events.on('time:newDay', ({ day }) => { if (cfg.restock !== false) restock(game, cfg); r.nights = day - startDay; if (cfg.autoTransmit !== false && cfg.tower && game.endgame.tower()) game.endgame.setTransmitting(true); });
+  game.events.on('time:newDay', ({ day }) => { if (cfg.restock !== false) { restock(game, cfg); maintain(game, base, cfg, r.spent); } r.nights = day - startDay; if (cfg.autoTransmit !== false && cfg.tower && game.endgame.tower()) game.endgame.setTransmitting(true); });
   const endDay = startDay + nights;
   let guard = 0;
   while (game.mode === 'playing' && guard++ < 400000) {

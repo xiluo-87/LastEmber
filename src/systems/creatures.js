@@ -234,9 +234,9 @@ function spawnManager(game, r, dt) {
   if (r.night) {
     const alive = counts(game, false).wolf;
     if (s.packDay !== day) { s.packDay = day; s.packsTonight = 0; }
-    if (s.packsTonight === 0 || (alive === 0 && s.clock - s.packClock > W.secondPackDelay && s.packsTonight < W.maxPacksPerNight)) {
-      const size = A.packSizeForDay(day);
-      if (spawnPack(game, { size }).length) { s.packsTonight++; s.packClock = s.clock; }
+    if (s.packsTonight === 0 || (alive === 0 && s.clock - s.packClock > W.secondPackDelay)) {
+      const size = A.nextNightPack({ day, packsTonight: s.packsTonight, signal: !!game.state.endgame?.transmitting, maxPacks: W.maxPacksPerNight });
+      if (size > 0 && spawnPack(game, { size }).length) { s.packsTonight++; s.packClock = s.clock; }
     }
   }
   // bear respawn
@@ -411,7 +411,25 @@ function nearGuardedKill(game, r) {
   return false;
 }
 
+/** The blocking structure a creature is actually standing in front of: among those within `reach` tiles, the one closest to the goal (the player),
+ *  so a wolf stopped by an outer spike ring chews the spikes instead of idling against them. null when nothing is near. */
+function pickNearBlocker(game, r, c) {
+  const reach = W.blockerReach, ctx = Math.floor(c.x / TILE), cty = Math.floor(c.y / TILE), n = Math.ceil(reach);
+  let best = null, bd = Infinity;
+  for (let dy = -n; dy <= n; dy++) for (let dx = -n; dx <= n; dx++) {
+    const tx = ctx + dx, ty = cty + dy;
+    if (!CW.blockingStructure(game, tx, ty)) continue;
+    const gx = (tx + 0.5) * TILE, gy = (ty + 0.5) * TILE;
+    if (Math.hypot(gx - c.x, gy - c.y) > reach * TILE) continue;
+    const toGoal = Math.hypot(gx - r.px, gy - r.py);
+    if (toGoal < bd) { bd = toGoal; best = r.hit; r.hit.tx = tx; r.hit.ty = ty; }
+  }
+  return best;
+}
+
 function pickStructureTarget(game, r, c) {
+  const near = pickNearBlocker(game, r, c);
+  if (near) return near;
   // after a failed BFS the flood region around the goal is still in pather.region: find the closest blocking structure bordering it
   const reg = r.pather.region, n = r.pather.regionSize, w = game.world.w;
   let best = null, bd = Infinity;
