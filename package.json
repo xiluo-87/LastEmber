@@ -1,0 +1,16 @@
+{
+  "name": "last-ember",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Last Ember - a browser winter survival game",
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/unit/*.test.js",
+    "test:e2e": "node tests/e2e/smoke.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}
