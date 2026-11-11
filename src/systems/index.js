@@ -20,6 +20,8 @@ import items from './items.js';
 import crafting from './crafting.js';
 import weather from './weather.js';
 import survival from './survival.js';
+import creatures from './creatures.js';
+import combat from './combat.js';
 
 export const SYSTEMS = [
   time,
@@ -31,5 +33,7 @@ export const SYSTEMS = [
   crafting,
   weather,
   survival,
+  creatures,  // wildlife AI, spawning, carcasses (after survival: uses damagePlayer)
+  combat,     // player:swing -> creatures, bow/arrows, butchering
   // append new systems below (one line each), e.g.:  weather, survival, gather, crafting, building, structures, creatures, combat, endgame, tutorial
 ];
