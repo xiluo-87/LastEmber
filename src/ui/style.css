@@ -1,5 +1,5 @@
 :root {
-  --ui: rgba(16, 24, 32, 0.85); --ui-solid: #101820; --text: #f4f1de; --muted: #9fb0c3; --danger: #e63946; --good: #7bd389; --fire: #ff9f1c;
+  --ui: rgba(16, 24, 32, 0.88); --ui-solid: #101820; --text: #f4f1de; --muted: #9fb0c3; --danger: #e63946; --good: #7bd389; --fire: #ff9f1c;
   --sl: env(safe-area-inset-left, 0px); --sr: env(safe-area-inset-right, 0px); --st: env(safe-area-inset-top, 0px); --sb: env(safe-area-inset-bottom, 0px);
   --slot: 48px;
 }

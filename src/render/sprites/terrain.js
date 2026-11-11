@@ -29,11 +29,11 @@ registerSprite('terrain:snow', { w: S, h: S, ax: 0, ay: 0, variants: 8, draw(ctx
 } });
 
 registerSprite('terrain:deep_snow', { w: S, h: S, ax: 0, ay: 0, variants: 5, draw(ctx, v, rng) {
-  ctx.fillStyle = '#dbe5f0'; ctx.fillRect(0, 0, S, S);
+  ctx.fillStyle = '#d3deeb'; ctx.fillRect(0, 0, S, S);
   for (let i = 0; i < 3; i++) {
     const x = 11 + rng() * 10, y = 11 + rng() * 10, r = 5 + rng() * 3;
     soft(ctx, x + 1, y + 2.5, r, r * 0.6, 'rgba(120,145,180,A)', 0.4);
-    soft(ctx, x - 1, y - 1.2, r * 0.9, r * 0.55, 'rgba(255,255,255,A)', 0.95);
+    soft(ctx, x - 1, y - 1.2, r * 0.9, r * 0.55, 'rgba(250,252,255,A)', 0.6);
   }
   speckle(ctx, rng, 6, 'rgba(255,255,255,0.95)', 0.5, 0.9);
 } });
@@ -73,12 +73,12 @@ registerSprite('terrain:cliff', { w: S, h: S, ax: 0, ay: 0, variants: 6, draw(ct
 } });
 
 // ---- edge feathering: terrain B's colour (or cliff shadow) bleeding onto neighbouring tile A along one side ----
-const EDGE_COL = { snow: '248,251,253', deep_snow: '196,210,228', ice: '175,218,235', rock: '150,159,172', cliff: '34,44,62' };
+const EDGE_COL = { snow: '248,251,253', deep_snow: '211,222,235', ice: '175,218,235', rock: '150,159,172', cliff: '34,44,62' };
 const SIDES = { n: [0, -1], s: [0, 1], w: [-1, 0], e: [1, 0] };
 for (const id of Object.keys(TERRAIN)) {
   for (const side of Object.keys(SIDES)) {
     registerSprite(`edge:${id}:${side}`, { w: S, h: S, ax: 0, ay: 0, draw(ctx, v, rng) {
-      const col = EDGE_COL[id], cliff = id === 'cliff', width = cliff ? 13 : 10, a0 = cliff ? 0.5 : 0.95;
+      const col = EDGE_COL[id], cliff = id === 'cliff', width = cliff ? 13 : 12, a0 = cliff ? 0.5 : 0.95;
       ctx.save();
       // rotate the canvas so we always draw a strip along the top, then rotate to the side
       const rot = { n: 0, e: Math.PI / 2, s: Math.PI, w: -Math.PI / 2 }[side];
